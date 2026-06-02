@@ -3,7 +3,7 @@
 [![Gem Version](https://badge.fury.io/rb/cdc-parallel.svg)](https://badge.fury.io/rb/cdc-parallel)
 [![CI](https://github.com/kanutocd/cdc-parallel/workflows/CI/badge.svg)](https://github.com/kanutocd/cdc-parallel/actions)
 [![Coverage Status](https://codecov.io/gh/kanutocd/cdc-parallel/branch/main/graph/badge.svg)](https://codecov.io/gh/kanutocd/cdc-parallel)
-[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.4-ruby.svg)](https://www.ruby-lang.org/en/)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%204.0-ruby.svg)](https://www.ruby-lang.org/en/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Optional high-throughput Ractor runtime for `cdc-core`.
