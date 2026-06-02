@@ -1,43 +1,163 @@
-# Cdc::Ractor
+# cdc-parallel
 
-TODO: Delete this and the text below, and describe your gem
+[![Gem Version](https://badge.fury.io/rb/cdc-parallel.svg)](https://badge.fury.io/rb/cdc-parallel)
+[![CI](https://github.com/kanutocd/cdc-parallel/workflows/CI/badge.svg)](https://github.com/kanutocd/cdc-parallel/actions)
+[![Coverage Status](https://codecov.io/gh/kanutocd/cdc-parallel/branch/main/graph/badge.svg)](https://codecov.io/gh/kanutocd/cdc-parallel)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.4-ruby.svg)](https://www.ruby-lang.org/en/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/cdc/ractor`. To experiment with that code, run `bin/console` for an interactive prompt.
+Optional high-throughput Ractor runtime for `cdc-core`.
+
+`cdc-parallel` executes `CDC::Core::Processor` objects in Ractors when those processors explicitly declare themselves Ractor-safe.
+
+## Requirements
+
+- Ruby 4.0+
+- `cdc-core`
+- `parallel-pool`
+
+Ruby 4.0+ is required because this gem targets the stabilized Ruby Ractor API.
+
+## Purpose
+
+```text
+cdc-core
+   │
+   ▼
+cdc-parallel
+   │
+   ▼
+parallel Parallel-aware processing
+```
+
+`cdc-parallel` is a runtime adapter. It does not define CDC events and does not parse database streams.
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
-
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
-```
-
-If bundler is not being used to manage dependencies, install the gem by executing:
-
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem "cdc-parallel"
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+require "cdc/core"
+require "cdc/parallel"
 
-## Development
+class MetricsProcessor < CDC::Core::Processor
+  ractor_safe!
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+  def process(event)
+    CDC::Core::ProcessorResult.success(
+      table: event.table,
+      operation: event.operation
+    )
+  end
+end
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+runtime =
+  CDC::Parallel::Runtime.new(
+    processor: MetricsProcessor.new,
+    size: 4
+  )
 
-## Contributing
+result = runtime.process(event)
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/cdc-ractor. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/cdc-ractor/blob/main/CODE_OF_CONDUCT.md).
+runtime.shutdown
+```
+
+## Processor Safety
+
+Only processors that declare `ractor_safe!` can run in this runtime.
+
+```ruby
+class AnalyticsProcessor < CDC::Core::Processor
+  ractor_safe!
+end
+```
+
+Unsafe processors raise:
+
+```ruby
+CDC::Parallel::UnsafeProcessorError
+```
+
+## What Belongs Here
+
+- Ractor processor execution
+- Transaction envelope processing
+- Processor safety validation
+- Graceful shutdown
+- Result normalization
+
+## What Does Not Belong Here
+
+- PostgreSQL connection handling
+- pgoutput parsing
+- pgoutput decoding
+- Rails integration
+- Audit persistence
+- Kafka/Redis/S3 publishing
+
+## Ecosystem Position
+
+```text
+cdc-parallel
+      │
+      ▼
+pgoutput-parser
+      │
+      ▼
+pgoutput-decoder
+      │
+      ▼
+cdc-core
+      │
+      ▼
+cdc-parallel
+      │
+      ▼
+whodunit-chronicles
+```
+
+## Roadmap
+
+- Persistent worker pools using `parallel-pool`
+- Mixed `CompositeProcessor` routing
+- Ratomic-backed queues
+- Ratomic-backed metrics
+- Backpressure policies
+- Transaction ordering strategies
+
+
+## Test Organization
+
+The test suite is grouped by intent so the same structure can be reused across CDC ecosystem gems.
+
+```text
+test/unit/          focused class and branch coverage
+test/integration/   component interaction and runtime integration
+test/behavior/      ecosystem contracts and guardrails
+test/performance/   opt-in smoke benchmarks
+```
+
+Run the default quality suite:
+
+```bash
+bundle exec rake test
+```
+
+Run a specific group:
+
+```bash
+bundle exec rake test:unit
+bundle exec rake test:integration
+bundle exec rake test:behavior
+bundle exec rake test:performance
+```
+
+The default `test` task runs unit, integration, and behavior tests. Performance tests are intentionally separate because they are environment-sensitive.
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Cdc::Ractor project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/cdc-ractor/blob/main/CODE_OF_CONDUCT.md).
+MIT.
