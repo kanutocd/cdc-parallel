@@ -9,5 +9,7 @@ if ENV.fetch("COVERAGE", "false").to_s == "true"
     enable_coverage :branch
     add_filter "/test/"
     add_filter "/sig/"
+    minimum_coverage line: 90
+    minimum_coverage branch: 90
   end
 end
