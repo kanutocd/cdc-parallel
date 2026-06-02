@@ -28,3 +28,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Added Minitest suite.
 - Added README and example.
 - Added CI and release workflows.
+
+## [0.1.1] - 2026-06-03
+
+No code changes.
+
+Improves RubyGems metadata and documentation wording to
+explicitly identify CDC as Change Data Capture.
