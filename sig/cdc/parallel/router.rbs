@@ -1,0 +1,20 @@
+module CDC
+  module Parallel
+    # Routes supported CDC objects to the correct runtime pool.
+    class Router
+      @processor_pool: untyped
+
+      @transaction_pool: untyped
+
+      # @param processor_pool [ProcessorPool]
+      # @param transaction_pool [TransactionPool]
+      def initialize: (processor_pool: untyped, transaction_pool: untyped) -> void
+
+      # Process a supported CDC work item.
+      #
+      # @param item [CDC::Core::ChangeEvent, CDC::Core::TransactionEnvelope]
+      # @return [CDC::Core::ProcessorResult]
+      def process: (untyped item) -> untyped
+    end
+  end
+end

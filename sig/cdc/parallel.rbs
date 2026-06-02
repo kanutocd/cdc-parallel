@@ -1,0 +1,5 @@
+module CDC
+  # Optional high-throughput Ractor runtime for cdc-core processors.
+  module Parallel
+  end
+end

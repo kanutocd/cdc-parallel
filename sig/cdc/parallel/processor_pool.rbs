@@ -1,0 +1,40 @@
+module CDC
+  module Parallel
+    # Executes one Ractor-safe processor in isolated Ractor workers.
+    #
+    # This v0.1 implementation intentionally uses one-shot worker Ractors for
+    # deterministic synchronous semantics while preserving the public pool API.
+    # The parallel-pool dependency is kept as the runtime foundation for later
+    # async/throughput-focused versions.
+    class ProcessorPool
+      @processor: untyped
+
+      @configuration: untyped
+
+      @shutdown: untyped
+
+      # @param processor [CDC::Core::Processor]
+      # @param size [Integer]
+      # @param timeout [Float, nil]
+      # @return [void]
+      def initialize: (processor: untyped, ?size: untyped, ?timeout: untyped?) -> void
+
+      # Process one ChangeEvent.
+      #
+      # @param event [CDC::Core::ChangeEvent]
+      # @return [CDC::Core::ProcessorResult]
+      def process: (untyped event) -> untyped
+
+      # Shut down the pool.
+      #
+      # @return [void]
+      def shutdown: () -> untyped
+
+      private
+
+      def validate_processor!: (untyped processor) -> (nil | untyped)
+
+      def take: (untyped worker) -> untyped
+    end
+  end
+end

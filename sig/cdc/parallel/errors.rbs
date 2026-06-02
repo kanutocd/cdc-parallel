@@ -1,0 +1,40 @@
+module CDC
+  module Parallel
+    # Base cdc-parallel error.
+    class Error < StandardError
+    end
+
+    # Raised when a processor has not declared itself Ractor-safe.
+    class UnsafeProcessorError < Error
+    end
+
+    # Raised when work is submitted after shutdown.
+    class ShutdownError < Error
+    end
+
+    # Raised when the runtime receives an unsupported work item.
+    class UnsupportedWorkItemError < Error
+    end
+
+    # Raised when processor execution fails inside a worker Ractor.
+    class ProcessorExecutionError < Error
+      @original_class: untyped
+
+      @original_message: untyped
+
+      @original_backtrace: untyped
+
+      attr_reader original_class: untyped
+
+      attr_reader original_message: untyped
+
+      attr_reader original_backtrace: untyped
+
+      def initialize: (original_class: untyped, original_message: untyped, ?original_backtrace: untyped) -> void
+    end
+
+    # Raised when a worker does not return a result before timeout.
+    class TimeoutError < Error
+    end
+  end
+end

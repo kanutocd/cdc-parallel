@@ -1,0 +1,8 @@
+module CDC
+  module Parallel
+    # Immutable configuration for Ractor runtimes.
+    class Configuration
+      def initialize: (?size: untyped, ?timeout: untyped?) -> void
+    end
+  end
+end

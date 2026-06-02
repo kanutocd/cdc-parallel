@@ -56,8 +56,13 @@ YARD::Rake::YardocTask.new(:yard)
 task default: %i[test rubocop yard]
 
 namespace :rbs do
+  desc "Remove all non-shimmed sig files"
+  task :clean do
+    sh "rm -rf ./sig/cdc_parallel.rbs ./sig/cdc"
+  end
+
   desc "Generate RBS signatures"
-  task :gen do
+  task :generate do
     sh "bundle exec rbs prototype rb --out-dir=sig --base-dir=lib lib"
   end
 

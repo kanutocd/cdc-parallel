@@ -16,7 +16,7 @@ module CDC
             type: FAILURE_MARKER,
             class: error.class.name,
             message: error.message,
-            backtrace: Array(error.backtrace).map(&:to_s).freeze
+            backtrace: (error.backtrace || []).map { |line| String(line) }.freeze
           }
         )
       end

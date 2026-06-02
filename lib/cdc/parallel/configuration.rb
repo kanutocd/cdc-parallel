@@ -8,15 +8,12 @@ module CDC
     #   @return [Integer] worker count.
     # @!attribute timeout
     #   @return [Float, nil] optional wait timeout in seconds.
-    Configuration = Data.define(:size, :timeout) do
-      # @param size [Integer] worker count.
-      # @param timeout [Float, nil] optional timeout.
-      # @return [void]
+    class Configuration < Data.define(:size, :timeout)
       def initialize(size: Etc.nprocessors, timeout: nil)
         raise ArgumentError, "size must be an Integer" unless size.is_a?(Integer)
         raise ArgumentError, "size must be greater than zero" unless size.positive?
 
-        super(size:, timeout:)
+        super
         ::Ractor.make_shareable(self)
       end
     end

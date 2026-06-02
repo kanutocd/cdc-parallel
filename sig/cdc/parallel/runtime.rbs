@@ -1,0 +1,37 @@
+module CDC
+  module Parallel
+    # High-level Ractor runtime facade for cdc-core processors.
+    class Runtime
+      @processor_pool: untyped
+
+      @transaction_pool: untyped
+
+      @router: untyped
+
+      @shutdown: untyped
+
+      # @param processor [CDC::Core::Processor]
+      # @param size [Integer]
+      # @param timeout [Float, nil]
+      # @return [void]
+      def initialize: (processor: untyped, ?size: untyped, ?timeout: untyped?) -> void
+
+      # Process a ChangeEvent or TransactionEnvelope.
+      #
+      # @param item [CDC::Core::ChangeEvent, CDC::Core::TransactionEnvelope]
+      # @return [CDC::Core::ProcessorResult]
+      def process: (untyped item) -> untyped
+
+      # Alias for transaction-oriented processing.
+      #
+      # @param transaction [CDC::Core::TransactionEnvelope]
+      # @return [CDC::Core::ProcessorResult]
+      def process_transaction: (untyped transaction) -> untyped
+
+      # Shut down all runtime resources.
+      #
+      # @return [void]
+      def shutdown: () -> (nil | untyped)
+    end
+  end
+end

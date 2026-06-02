@@ -1,0 +1,22 @@
+module CDC
+  module Parallel
+    # Normalizes values returned by workers.
+    class ResultCollector
+      FAILURE_MARKER: :__cdc_parallel_failure__
+
+      # Build a shareable failure payload that can safely cross a Ractor boundary.
+      #
+      # @param error [Exception]
+      # @return [Hash]
+      def self.worker_failure: (untyped error) -> untyped
+
+      # Normalize a worker return value into a ProcessorResult.
+      #
+      # @param value [Object]
+      # @return [CDC::Core::ProcessorResult]
+      def self.normalize: (untyped value) -> untyped
+
+      def self.worker_failure?: (untyped value) -> untyped
+    end
+  end
+end
