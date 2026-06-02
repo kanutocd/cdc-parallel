@@ -7,13 +7,11 @@ Gem::Specification.new do |spec|
   spec.version = CDC::Parallel::VERSION
   spec.authors = ["Ken C. Demanawa"]
   spec.email = ["kenneth.c.demanawa@gmail.com"]
-
-  spec.summary = "Optional parallel runtime for the CDC Ecosystem."
-
+  spec.summary = "Optional parallel Change Data Capture (CDC) runtime for cdc-core."
   spec.description = <<~TEXT
     cdc-parallel provides optional Ractor-backed parallel execution for
-    cdc-core. It accelerates Change Data Capture (CDC) pipelines while
-    preserving the simplicity and composability of the CDC Ecosystem.
+    cdc-core. It accelerates PostgreSQL Change Data Capture (CDC) event
+    processing while preserving the cdc-core programming model.
   TEXT
   spec.homepage = "https://kanutocd.github.io/cdc-parallel/"
   spec.license = "MIT"
