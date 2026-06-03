@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://rubygems.org/gems/cdc-core
+      url: https://kanutocd.github.io/cdc-parallel/
     steps:
       - uses: actions/checkout@v6
         with:
