@@ -33,5 +33,4 @@ Gem::Specification.new do |spec|
   ]
 
   spec.add_dependency "cdc-core", "~> 0.1"
-  spec.add_dependency "ractor-pool", "~> 0.4.0"
 end

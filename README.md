@@ -208,7 +208,10 @@ The benchmark focuses on three workload categories:
 | cpu      | Measure CPU-bound processing throughput         |
 | batch    | Measure batched CDC event processing throughput |
 
-### Running Benchmarks
+See [benchmark/README.md](benchmark/README.md) for the full benchmark methodology,
+configuration reference, report schema, and interpretation guidance.
+
+### Quick Start
 
 Tiny workload:
 
@@ -233,6 +236,23 @@ BENCHMARK_BATCH_SIZE=10000 \
 bundle exec rake benchmark:processor_pool
 ```
 
+Worker-count sweep:
+
+```bash
+BENCHMARK_WORKLOAD=cpu \
+BENCHMARK_WORKER_COUNTS=1,2,4 \
+bundle exec rake benchmark:processor_pool
+```
+
+Credibility controls:
+
+```bash
+BENCHMARK_TRIALS=7 \
+BENCHMARK_MIN_DURATION=0.25 \
+BENCHMARK_ITERATIONS=1000 \
+bundle exec rake benchmark:processor_pool
+```
+
 ### Benchmark Docker Image
 
 Build and run the reusable Docker image:
@@ -251,101 +271,3 @@ docker run --rm ghcr.io/kanutocd/cdc-parallel-benchmark:main
 The benchmark image is intended to become the shared performance validation
 pattern across CDC Ecosystem gems, enabling reproducible benchmark execution
 locally, in CI, and across different development environments.
-
-### Example Results
-
-Environment:
-
-* Ruby 4.0.5
-* x86_64 Linux
-* 4 workers
-
-These example results were captured on 2026-06-03 using the Port-backed
-pre-warmed worker pool.
-
-Tiny workload:
-
-```json
-{
-  "workload": "tiny",
-  "serial": {
-    "elapsed_seconds": 0.00785,
-    "events_per_second": 127389.15
-  },
-  "parallel": {
-    "elapsed_seconds": 0.008903,
-    "events_per_second": 112321.8
-  },
-  "ratio": {
-    "parallel_to_serial": 0.8817
-  },
-  "interpretation": "serial faster"
-}
-```
-
-CPU workload (`BENCHMARK_CPU_ROUNDS=250`):
-
-```json
-{
-  "workload": "cpu",
-  "serial": {
-    "elapsed_seconds": 0.550913,
-    "events_per_second": 1815.17
-  },
-  "parallel": {
-    "elapsed_seconds": 0.279549,
-    "events_per_second": 3577.19
-  },
-  "ratio": {
-    "parallel_to_serial": 1.9707
-  },
-  "interpretation": "parallel faster"
-}
-```
-
-Batch workload (`BENCHMARK_BATCH_SIZE=100`):
-
-```json
-{
-  "workload": "batch",
-  "effective_events": 100000,
-  "serial": {
-    "elapsed_seconds": 0.037873,
-    "events_per_second": 2640417.68
-  },
-  "parallel": {
-    "elapsed_seconds": 0.030337,
-    "events_per_second": 3296351.89
-  },
-  "ratio": {
-    "parallel_to_serial": 1.2484
-  },
-  "interpretation": "parallel faster"
-}
-```
-
-### Interpretation
-
-A ratio greater than `1.0` indicates that the pre-warmed Ractor worker pool outperformed serial execution.
-
-```text
-ratio > 1.0  => parallel faster
-ratio = 1.0  => equivalent
-ratio < 1.0  => serial faster
-```
-
-Tiny workloads primarily measure dispatch overhead, so serial execution may be
-faster. CPU-bound and batched workloads are better indicators of useful
-parallel throughput.
-
-### Reproducibility
-
-Benchmark results vary depending on:
-
-* CPU model
-* Core count
-* Operating system
-* Ruby version
-* Background system activity
-
-The benchmark suite is provided so that users can reproduce and validate results on their own hardware.

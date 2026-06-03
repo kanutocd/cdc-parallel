@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.0] - 2026-06-03
+
+### Added
+
+- Added multi-trial processor-pool benchmark reporting with min, median, max, and p95 distributions.
+- Added minimum measurement duration support for benchmark trials.
+- Added worker-count sweep support through `BENCHMARK_WORKER_COUNTS`.
+- Added benchmark comparison across serial execution, repeated `ProcessorPool#process`, and batched `ProcessorPool#process_many`.
+- Added benchmark environment metadata for Ruby, platform, host, CPU count, and uname details.
+- Added detailed benchmark methodology and report documentation under `benchmark/README.md`.
+
+### Changed
+
+- Updated README benchmark guidance to point to the detailed benchmark report documentation.
+- Updated benchmark ratio reporting to compare median throughput against serial execution.
+
  ## [0.2.2] - 2026-06-03
 
   ### Changed
