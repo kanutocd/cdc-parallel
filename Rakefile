@@ -48,7 +48,8 @@ namespace :test do
     desc "Run #{name} tests"
     task name do
       ENV["TEST_GROUP"] = name.to_s
-      ENV["PERFORMANCE"] = "true" if name == :performance && !ENV.key?("PERFORMANCE")
+      performance_tests = name == :performance && !ENV.key?("CDC_PARALLEL_PERFORMANCE_TESTS")
+      ENV["CDC_PARALLEL_PERFORMANCE_TESTS"] = "1" if performance_tests
       run_test_files(pattern)
     end
   end
