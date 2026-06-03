@@ -24,8 +24,10 @@ class ProcessorPoolUnitTest < Minitest::Test
 
   def test_process_many_accepts_empty_batch
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+    results = pool.process_many([])
 
-    assert_empty pool.process_many([])
+    assert_empty results
+    assert_predicate results, :frozen?
   ensure
     pool&.shutdown
   end
@@ -60,5 +62,22 @@ class ProcessorPoolUnitTest < Minitest::Test
     pool.shutdown
 
     assert true
+  end
+
+  def test_shutdown_confirms_workers_stopped_after_processed_work
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
+    workers = pool.instance_variable_get(:@workers)
+
+    result = pool.process(change_event)
+    pool.shutdown
+
+    assert result.success?
+    assert(workers.all? { |worker| terminated?(worker) })
+  end
+
+  private
+
+  def terminated?(worker)
+    worker.inspect.include?("terminated")
   end
 end

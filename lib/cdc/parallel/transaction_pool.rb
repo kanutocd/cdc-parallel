@@ -16,8 +16,12 @@ module CDC
       # @param transaction [CDC::Core::TransactionEnvelope]
       # @return [CDC::Core::ProcessorResult]
       def process(transaction)
-        results = transaction.events.map { |event| @processor_pool.process(event) }.freeze
-        ResultCollector.normalize(results)
+        results = @processor_pool.process_many(transaction.events).freeze
+        failure = results.find(&:failure?)
+
+        return CDC::Core::ProcessorResult.failure(failure.error, event: results) if failure
+
+        CDC::Core::ProcessorResult.success(results)
       end
 
       # Shut down worker resources.

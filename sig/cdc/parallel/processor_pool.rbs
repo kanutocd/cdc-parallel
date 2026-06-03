@@ -37,6 +37,12 @@ module CDC
 
       private
 
+      def signal_workers: () -> untyped
+
+      def wait_for_workers: () -> untyped
+
+      def wait_for_workers_with_timeout: () -> untyped
+
       def validate_processor!: (untyped processor) -> (nil | untyped)
 
       def build_worker: (untyped processor) -> untyped

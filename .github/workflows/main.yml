@@ -30,5 +30,7 @@ jobs:
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+      - name: Validate RBS signatures
+        run: bundle exec rake rbs:validate
       - name: Run performance tests
         run: CDC_PARALLEL_PERFORMANCE_TESTS=1 bundle exec rake test:performance

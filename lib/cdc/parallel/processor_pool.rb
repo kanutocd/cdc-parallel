@@ -63,6 +63,13 @@ module CDC
 
         @shutdown = true
 
+        signal_workers
+        wait_for_workers
+      end
+
+      private
+
+      def signal_workers
         @workers.each do |worker|
           worker.send(nil)
         rescue Ractor::ClosedError
@@ -70,7 +77,26 @@ module CDC
         end
       end
 
-      private
+      def wait_for_workers
+        if @configuration.timeout
+          wait_for_workers_with_timeout
+        else
+          @workers.each(&:join)
+        end
+      end
+
+      def wait_for_workers_with_timeout
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @configuration.timeout
+
+        @workers.each do |worker|
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          break unless remaining.positive?
+
+          ::Timeout.timeout(remaining, TimeoutError) { worker.join }
+        rescue TimeoutError
+          break
+        end
+      end
 
       def validate_processor!(processor)
         return if processor.class.respond_to?(:ractor_safe?) &&

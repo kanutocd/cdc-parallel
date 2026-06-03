@@ -82,4 +82,38 @@ class ProcessorPoolTest < Minitest::Test
   ensure
     pool&.shutdown
   end
+
+  def test_shutdown_waits_for_pending_work_to_finish
+    pool = CDC::Parallel::ProcessorPool.new(processor: SlowProcessor.new, size: 1)
+    workers = pool.instance_variable_get(:@workers)
+    result = process_during_shutdown(pool)
+
+    assert result.success?
+    assert(workers.all? { |worker| worker.inspect.include?("terminated") })
+  ensure
+    pool&.shutdown
+  end
+
+  def test_shutdown_with_timeout_does_not_wait_indefinitely_for_pending_work
+    pool = CDC::Parallel::ProcessorPool.new(processor: SlowProcessor.new, size: 1, timeout: 0.001)
+
+    pool.process(change_event)
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    pool.shutdown
+
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at, :<, 0.05
+  ensure
+    pool&.shutdown
+  end
+
+  private
+
+  def process_during_shutdown(pool)
+    thread = Thread.new { pool.process(change_event) }
+    sleep 0.005
+    pool.shutdown
+    thread.value
+  ensure
+    thread&.join
+  end
 end
