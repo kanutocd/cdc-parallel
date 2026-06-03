@@ -57,3 +57,37 @@ class FlakyProcessor < CDC::Core::Processor
     )
   end
 end
+
+class SlowProcessor < CDC::Core::Processor
+  ractor_safe!
+
+  def process(event)
+    sleep 0.05
+
+    CDC::Core::ProcessorResult.success(
+      ::Ractor.make_shareable(
+        {
+          operation: event.operation,
+          table: event.table
+        }
+      )
+    )
+  end
+end
+
+class ConditionalSlowProcessor < CDC::Core::Processor
+  ractor_safe!
+
+  def process(event)
+    sleep 0.05 if event.table == "slow"
+
+    CDC::Core::ProcessorResult.success(
+      ::Ractor.make_shareable(
+        {
+          operation: event.operation,
+          table: event.table
+        }
+      )
+    )
+  end
+end

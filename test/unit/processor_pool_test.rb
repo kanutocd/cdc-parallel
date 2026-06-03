@@ -22,6 +22,27 @@ class ProcessorPoolUnitTest < Minitest::Test
     assert_raises(CDC::Parallel::ShutdownError) { pool.process(change_event) }
   end
 
+  def test_process_many_accepts_empty_batch
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+
+    assert_empty pool.process_many([])
+  ensure
+    pool&.shutdown
+  end
+
+  def test_timeout_result_when_deadline_has_already_expired
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1, timeout: 0.000000001)
+    reply_port = ::Ractor::Port.new
+
+    result = pool.send(:collect_results, reply_port, 1).fetch(0)
+
+    assert result.failure?
+    assert_instance_of CDC::Parallel::TimeoutError, result.error
+  ensure
+    reply_port&.close
+    pool&.shutdown
+  end
+
   def test_prewarms_workers_during_initialization
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
     workers = pool.instance_variable_get(:@workers)

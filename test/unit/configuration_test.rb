@@ -15,4 +15,10 @@ class ConfigurationTest < Minitest::Test
     assert_raises(ArgumentError) { CDC::Parallel::Configuration.new(size: 0) }
     assert_raises(ArgumentError) { CDC::Parallel::Configuration.new(size: "x") }
   end
+
+  def test_rejects_invalid_timeout
+    assert_raises(ArgumentError) { CDC::Parallel::Configuration.new(timeout: 0) }
+    assert_raises(ArgumentError) { CDC::Parallel::Configuration.new(timeout: -1) }
+    assert_raises(ArgumentError) { CDC::Parallel::Configuration.new(timeout: "x") }
+  end
 end

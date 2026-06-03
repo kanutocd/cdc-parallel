@@ -8,7 +8,7 @@ module CDC
     # This pays Ractor startup cost once, keeps workers alive after processor
     # failures, and provides both synchronous single-item processing and batched
     # dispatch for throughput-oriented benchmarks and runtimes.
-    class ProcessorPool
+    class ProcessorPool # rubocop:disable Metrics/ClassLength
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
       # @param timeout [Float, nil]
@@ -80,7 +80,7 @@ module CDC
               "#{processor.class} must declare ractor_safe!"
       end
 
-      def build_worker(processor)
+      def build_worker(processor) # rubocop:disable Metrics/MethodLength
         ::Ractor.new(processor) do |safe_processor|
           loop do
             message = ::Ractor.receive
@@ -96,7 +96,11 @@ module CDC
               CDC::Parallel::ResultCollector.worker_failure(e)
             end
 
-            reply_port << [index, response]
+            begin
+              reply_port << [index, response]
+            rescue Ractor::ClosedError
+              # The caller may have timed out and closed the reply port.
+            end
           end
         end
       end
@@ -112,13 +116,49 @@ module CDC
 
       def collect_results(reply_port, count)
         results = Array.new(count)
+        return results.freeze if count.zero?
 
-        count.times do
+        if @configuration.timeout
+          collect_results_with_timeout(reply_port, results)
+        else
+          collect_results_without_timeout(reply_port, results)
+        end
+      end
+
+      def collect_results_without_timeout(reply_port, results)
+        results.length.times do
           index, response = reply_port.receive
           results[index] = ResultCollector.normalize(response)
         end
 
         results.freeze
+      end
+
+      def collect_results_with_timeout(reply_port, results)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @configuration.timeout
+
+        results.length.times do
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          return timeout_results(results) unless remaining.positive?
+
+          index, response = ::Timeout.timeout(remaining, TimeoutError) { reply_port.receive }
+          results[index] = ResultCollector.normalize(response)
+        rescue TimeoutError
+          return timeout_results(results)
+        end
+
+        results.freeze
+      end
+
+      def timeout_results(results)
+        missing = results.count(&:nil?)
+        timeout_error = TimeoutError.new(
+          "processor pool timed out after #{@configuration.timeout} seconds waiting for #{missing} result(s)"
+        )
+
+        results.map do |result|
+          result || CDC::Core::ProcessorResult.failure(timeout_error)
+        end.freeze
       end
     end
   end

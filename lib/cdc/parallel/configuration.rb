@@ -12,6 +12,8 @@ module CDC
       def initialize(size: Etc.nprocessors, timeout: nil)
         raise ArgumentError, "size must be an Integer" unless size.is_a?(Integer)
         raise ArgumentError, "size must be greater than zero" unless size.positive?
+        raise ArgumentError, "timeout must be numeric" unless timeout.nil? || timeout.is_a?(Numeric)
+        raise ArgumentError, "timeout must be greater than zero" if timeout && !timeout.positive?
 
         super
         ::Ractor.make_shareable(self)

@@ -1,15 +1,14 @@
 module CDC
   module Parallel
-    # Executes one Ractor-safe processor in isolated Ractor workers.
-    #
-    # This v0.1 implementation intentionally uses one-shot worker Ractors for
-    # deterministic synchronous semantics while preserving the public pool API.
-    # The parallel-pool dependency is kept as the runtime foundation for later
-    # async/throughput-focused versions.
+    # Executes one Ractor-safe processor in pre-warmed persistent Ractor workers.
     class ProcessorPool
       @processor: untyped
 
       @configuration: untyped
+
+      @workers: untyped
+
+      @next_worker: Integer
 
       @shutdown: untyped
 
@@ -19,11 +18,17 @@ module CDC
       # @return [void]
       def initialize: (processor: untyped, ?size: untyped, ?timeout: untyped?) -> void
 
-      # Process one ChangeEvent.
+      # Process one work item synchronously.
       #
-      # @param event [CDC::Core::ChangeEvent]
+      # @param item [Object]
       # @return [CDC::Core::ProcessorResult]
-      def process: (untyped event) -> untyped
+      def process: (untyped item) -> untyped
+
+      # Process many work items using the pre-warmed worker pool.
+      #
+      # @param items [Array<Object>]
+      # @return [Array<CDC::Core::ProcessorResult>]
+      def process_many: (untyped items) -> untyped
 
       # Shut down the pool.
       #
@@ -34,7 +39,17 @@ module CDC
 
       def validate_processor!: (untyped processor) -> (nil | untyped)
 
-      def take: (untyped worker) -> untyped
+      def build_worker: (untyped processor) -> untyped
+
+      def next_worker: () -> untyped
+
+      def collect_results: (untyped reply_port, Integer count) -> untyped
+
+      def collect_results_without_timeout: (untyped reply_port, untyped results) -> untyped
+
+      def collect_results_with_timeout: (untyped reply_port, untyped results) -> untyped
+
+      def timeout_results: (untyped results) -> untyped
     end
   end
 end

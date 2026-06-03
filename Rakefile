@@ -5,7 +5,7 @@ require "rubocop/rake_task"
 require "yard"
 
 RuboCop::RakeTask.new(:rubocop) do |task|
-  task.options = ["--parallel"]
+  task.options = ["--cache", "false"]
 end
 
 TEST_GROUPS = {
@@ -34,7 +34,14 @@ def run_test_files(pattern)
 end
 
 desc "Run unit, integration, and behavior tests"
-task test: GROUPED_TESTS.map { |group| "test:#{group}" }
+task :test do
+  if ENV.fetch("COVERAGE", "false").to_s == "true"
+    ENV["TEST_GROUP"] = "all"
+    run_test_files("test/{unit,integration,behavior}/**/*_test.rb")
+  else
+    GROUPED_TESTS.each { |group| Rake::Task["test:#{group}"].invoke }
+  end
+end
 
 namespace :test do
   TEST_GROUPS.each do |name, pattern|

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "etc"
+require "timeout"
 
 require_relative "parallel/version"
 require_relative "parallel/errors"

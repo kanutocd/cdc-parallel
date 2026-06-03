@@ -56,4 +56,30 @@ class ProcessorPoolTest < Minitest::Test
   ensure
     pool&.shutdown
   end
+
+  def test_times_out_when_worker_does_not_reply_before_deadline
+    pool = CDC::Parallel::ProcessorPool.new(processor: SlowProcessor.new, size: 1, timeout: 0.001)
+
+    result = pool.process(change_event)
+
+    assert result.failure?
+    assert_instance_of CDC::Parallel::TimeoutError, result.error
+    assert_match "processor pool timed out", result.error.message
+  ensure
+    pool&.shutdown
+  end
+
+  def test_worker_survives_late_reply_after_timeout
+    pool = CDC::Parallel::ProcessorPool.new(processor: ConditionalSlowProcessor.new, size: 1, timeout: 0.001)
+
+    timed_out = pool.process(change_event(table: "slow"))
+    sleep 0.1
+
+    succeeded = pool.process(change_event)
+
+    assert timed_out.failure?
+    assert succeeded.success?
+  ensure
+    pool&.shutdown
+  end
 end
