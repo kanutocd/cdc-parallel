@@ -6,6 +6,14 @@ module CDC
     class ResultCollector
       FAILURE_MARKER = :__cdc_parallel_failure__
 
+      # Build a shareable success payload that can safely cross a Ractor boundary.
+      #
+      # @param value [Object]
+      # @return [Object]
+      def self.worker_success(value)
+        ::Ractor.make_shareable(value)
+      end
+
       # Build a shareable failure payload that can safely cross a Ractor boundary.
       #
       # @param error [Exception]

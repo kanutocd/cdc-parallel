@@ -18,6 +18,19 @@ class ProcessorPoolTest < Minitest::Test
     pool&.shutdown
   end
 
+  def test_processes_many_events_in_input_order
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
+    events = [change_event, change_event]
+
+    results = pool.process_many(events)
+
+    assert_equal 2, results.length
+    assert results.all?(&:success?)
+    assert_equal(%i[update update], results.map { |result| result.event[:operation] })
+  ensure
+    pool&.shutdown
+  end
+
   def test_wraps_processor_error
     pool = CDC::Parallel::ProcessorPool.new(processor: FailingProcessor.new, size: 1)
 
@@ -27,6 +40,19 @@ class ProcessorPoolTest < Minitest::Test
     assert_instance_of CDC::Parallel::ProcessorExecutionError, result.error
     assert_equal "RuntimeError", result.error.original_class
     assert_equal "boom", result.error.original_message
+  ensure
+    pool&.shutdown
+  end
+
+  def test_worker_stays_alive_after_processor_error
+    pool = CDC::Parallel::ProcessorPool.new(processor: ConditionalFailingProcessor.new, size: 1)
+
+    failed = pool.process(change_event(table: "boom"))
+    succeeded = pool.process(change_event(table: "users"))
+
+    assert failed.failure?
+    assert succeeded.success?
+    assert_equal "users", succeeded.event[:table]
   ensure
     pool&.shutdown
   end

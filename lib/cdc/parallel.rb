@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "etc"
-require "ractor-pool"
 
 require_relative "parallel/version"
 require_relative "parallel/errors"
@@ -13,7 +12,7 @@ require_relative "parallel/router"
 require_relative "parallel/runtime"
 
 module CDC
-  # Optional high-throughput Ractor runtime for cdc-core processors.
+  # Optional parallel Change Data Capture runtime for cdc-core processors.
   module Parallel
   end
 end

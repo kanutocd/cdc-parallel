@@ -18,4 +18,37 @@ class ProcessorSafetyContractTest < Minitest::Test
     refute UnsafeProcessor.ractor_safe?
     refute UnsafeProcessor.new.ractor_safe?
   end
+
+  def test_worker_survives_processor_failure # rubocop:disable Metrics/MethodLength
+    failing_event = CDC::Core::ChangeEvent.new(
+      operation: :update,
+      schema: "public",
+      table: "failures",
+      old_values: {},
+      new_values: {},
+      transaction_id: 1
+    )
+
+    passing_event = CDC::Core::ChangeEvent.new(
+      operation: :update,
+      schema: "public",
+      table: "events",
+      old_values: {},
+      new_values: {},
+      transaction_id: 2
+    )
+
+    pool = CDC::Parallel::ProcessorPool.new(
+      processor: FlakyProcessor.new,
+      size: 1
+    )
+
+    failed = pool.process(failing_event)
+    passed = pool.process(passing_event)
+
+    refute failed.success?
+    assert passed.success?
+  ensure
+    pool&.shutdown
+  end
 end

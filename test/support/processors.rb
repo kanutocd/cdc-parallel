@@ -28,3 +28,32 @@ class FailingProcessor < CDC::Core::Processor
     raise "boom"
   end
 end
+
+class ConditionalFailingProcessor < CDC::Core::Processor
+  ractor_safe!
+
+  def process(event)
+    raise "boom" if event.table == "boom"
+
+    payload = ::Ractor.make_shareable({ operation: event.operation, table: event.table })
+
+    CDC::Core::ProcessorResult.success(payload)
+  end
+end
+
+class FlakyProcessor < CDC::Core::Processor
+  ractor_safe!
+
+  def process(event)
+    raise "boom" if event.table == "failures"
+
+    CDC::Core::ProcessorResult.success(
+      ::Ractor.make_shareable(
+        {
+          operation: event.operation,
+          table: event.table
+        }
+      )
+    )
+  end
+end

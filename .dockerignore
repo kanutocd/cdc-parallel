@@ -1,0 +1,10 @@
+.git
+.github
+.ignoreme
+.yardoc
+coverage
+pkg
+tmp
+log
+*.gem
+.bundle

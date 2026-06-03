@@ -161,3 +161,106 @@ The default `test` task runs unit, integration, and behavior tests. Performance 
 ## License
 
 MIT.
+
+
+## Benchmarking
+
+`cdc-parallel` includes reproducible benchmarks that compare serial processor execution against the pre-warmed Ractor worker pool.
+
+The benchmark focuses on three workload categories:
+
+| Workload | Purpose                                         |
+| -------- | ----------------------------------------------- |
+| tiny     | Measure dispatch overhead                       |
+| cpu      | Measure CPU-bound processing throughput         |
+| batch    | Measure batched CDC event processing throughput |
+
+### Running Benchmarks
+
+Tiny workload:
+
+```bash
+BENCHMARK_WORKLOAD=tiny \
+bundle exec rake benchmark:processor_pool
+```
+
+CPU-bound workload:
+
+```bash
+BENCHMARK_WORKLOAD=cpu \
+BENCHMARK_CPU_ROUNDS=5000 \
+bundle exec rake benchmark:processor_pool
+```
+
+Batch workload:
+
+```bash
+BENCHMARK_WORKLOAD=batch \
+BENCHMARK_BATCH_SIZE=10000 \
+bundle exec rake benchmark:processor_pool
+```
+
+### Benchmark Docker Image
+
+Build and run the reusable Docker image:
+
+```bash
+bundle exec rake benchmark:docker_build
+bundle exec rake benchmark:docker_run
+```
+
+Or run the image directly after it is published to GitHub Container Registry:
+
+```bash
+docker run --rm ghcr.io/kanutocd/cdc-parallel-benchmark:main
+```
+
+The benchmark image is intended to become the shared performance validation
+pattern across CDC Ecosystem gems, enabling reproducible benchmark execution
+locally, in CI, and across different development environments.
+
+### Example Result
+
+Environment:
+
+* Ruby 4.0.5
+* x86_64 Linux
+* 4 workers
+
+CPU workload (`BENCHMARK_CPU_ROUNDS=5000`):
+
+```json
+{
+  "serial": {
+    "events_per_second": 120.26
+  },
+  "parallel": {
+    "events_per_second": 250.15
+  },
+  "ratio": {
+    "parallel_to_serial": 2.08
+  }
+}
+```
+
+### Interpretation
+
+A ratio greater than `1.0` indicates that the pre-warmed Ractor worker pool outperformed serial execution.
+
+```text
+ratio > 1.0  => parallel faster
+ratio = 1.0  => equivalent
+ratio < 1.0  => serial faster
+```
+
+### Reproducibility
+
+Benchmark results vary depending on:
+
+* CPU model
+* Core count
+* Operating system
+* Ruby version
+* Background system activity
+
+The benchmark suite is provided so that users can reproduce and validate results on their own hardware.

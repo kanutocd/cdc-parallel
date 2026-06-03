@@ -7,10 +7,6 @@ require_relative "../support/events"
 class ProcessorPoolUnitTest < Minitest::Test
   include EventFixtures
 
-  FakeWorkerWithoutValue = Struct.new(:result) do
-    def take = result
-  end
-
   def test_rejects_unsafe_processor
     error = assert_raises(CDC::Parallel::UnsafeProcessorError) do
       CDC::Parallel::ProcessorPool.new(processor: UnsafeProcessor.new, size: 1)
@@ -26,13 +22,22 @@ class ProcessorPoolUnitTest < Minitest::Test
     assert_raises(CDC::Parallel::ShutdownError) { pool.process(change_event) }
   end
 
-  def test_take_falls_back_to_take_when_worker_has_no_value_method
-    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
-    result = CDC::Core::ProcessorResult.success(:ok)
-    worker = FakeWorkerWithoutValue.new(result)
+  def test_prewarms_workers_during_initialization
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
+    workers = pool.instance_variable_get(:@workers)
 
-    assert_same result, pool.send(:take, worker)
+    assert_equal 2, workers.length
+    assert(workers.all? { |worker| worker.is_a?(::Ractor) })
   ensure
     pool&.shutdown
+  end
+
+  def test_shutdown_is_idempotent
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+
+    pool.shutdown
+    pool.shutdown
+
+    assert true
   end
 end

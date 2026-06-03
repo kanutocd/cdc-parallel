@@ -71,3 +71,20 @@ namespace :rbs do
     sh "bundle exec steep check"
   end
 end
+
+namespace :benchmark do
+  desc "Run the processor pool benchmark locally"
+  task :processor_pool do
+    sh "bundle exec ruby benchmark/processor_pool_benchmark.rb"
+  end
+
+  desc "Build the reusable benchmark Docker image"
+  task :docker_build do
+    sh "docker build -f docker/benchmark/Dockerfile -t cdc-parallel-benchmark ."
+  end
+
+  desc "Run the benchmark Docker image"
+  task :docker_run do
+    sh "docker run --rm cdc-parallel-benchmark"
+  end
+end

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module EventFixtures
-  def change_event
+  def change_event(table: "users")
     CDC::Core::ChangeEvent.new(
       operation: :update,
       schema: "public",
-      table: "users",
+      table: table,
       old_values: { "name" => "Alice" },
       new_values: { "name" => "Bob" },
       transaction_id: 123
