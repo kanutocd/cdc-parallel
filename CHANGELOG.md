@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.1] - 2026-06-03
+
+### Added
+
+  v0.2.1 - Correctness and reliability patch
+
+  - Enforced processor timeout handling.
+  - Fixed transaction partial-failure behavior.
+  - Added regression coverage for hung processors and transaction failure cases.
+
 ## [0.2.0] - 2026-06-03
 
 ### Added
