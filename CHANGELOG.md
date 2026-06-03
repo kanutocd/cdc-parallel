@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+ ## [0.2.2] - 2026-06-03
+
+  ### Changed
+
+  - Improved processor pool shutdown so workers are signaled and confirmed stopped where practical.
+  - Updated transaction processing so partial event failures fail the transaction result while preserving per-event results.
+  - Added CI validation for RBS signatures.
+
+  ### Added
+
+  - Added regression coverage for shutdown after processed and pending work.
+  - Added regression coverage for timeout-bounded shutdown behavior.
+  - Added regression coverage for `process_many([])` returning a clean empty result.
+  - Added transaction pool coverage for successful and partially failed transactions.
+
 ## [0.2.1] - 2026-06-03
 
 ### Added
