@@ -7,7 +7,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY Gemfile Gemfile.lock cdc-parallel.gemspec ./
+COPY Gemfile cdc-parallel.gemspec ./
 COPY README.md CHANGELOG.md LICENSE.txt ./
 COPY lib ./lib
 COPY sig ./sig
