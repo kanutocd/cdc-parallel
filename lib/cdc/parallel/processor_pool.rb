@@ -8,6 +8,9 @@ module CDC
     # This pays Ractor startup cost once, keeps workers alive after processor
     # failures, and provides both synchronous single-item processing and batched
     # dispatch for throughput-oriented benchmarks and runtimes.
+    #
+    # Submission is safe from multiple Ruby threads. Work is delivered to
+    # worker-owned Ractor::Port inboxes and executed inside isolated Ractors.
     class ProcessorPool # rubocop:disable Metrics/ClassLength
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
@@ -18,11 +21,15 @@ module CDC
 
         @processor = ::Ractor.make_shareable(processor)
         @configuration = Configuration.new(size:, timeout:)
-        @workers = Array.new(@configuration.size) do
+        booted_workers = Array.new(@configuration.size) do
           build_worker(@processor)
-        end.freeze
+        end
+
+        @workers = booted_workers.map(&:first).freeze
+        @worker_inboxes = booted_workers.map(&:last).freeze
 
         @next_worker = 0
+        @dispatch_mutex = Mutex.new
         @shutdown = false
       end
 
@@ -41,14 +48,10 @@ module CDC
       # @param items [Array<Object>]
       # @return [Array<CDC::Core::ProcessorResult>]
       def process_many(items)
-        raise ShutdownError, "processor pool has been shut down" if @shutdown
-
         work_items = items.map { |item| ::Ractor.make_shareable(item) }
         reply_port = ::Ractor::Port.new
 
-        work_items.each_with_index do |item, index|
-          next_worker.send([index, item, reply_port])
-        end
+        dispatch(work_items, reply_port)
 
         collect_results(reply_port, work_items.length)
       ensure
@@ -59,19 +62,32 @@ module CDC
       #
       # @return [void]
       def shutdown
-        return if @shutdown
+        should_wait = @dispatch_mutex.synchronize do
+          return if @shutdown
 
-        @shutdown = true
+          @shutdown = true
+          signal_workers
+          true
+        end
 
-        signal_workers
-        wait_for_workers
+        wait_for_workers if should_wait
       end
 
       private
 
+      def dispatch(work_items, reply_port)
+        @dispatch_mutex.synchronize do
+          raise ShutdownError, "processor pool has been shut down" if @shutdown
+
+          work_items.each_with_index do |item, index|
+            next_worker_inbox.send([index, item, reply_port])
+          end
+        end
+      end
+
       def signal_workers
-        @workers.each do |worker|
-          worker.send(nil)
+        @worker_inboxes.each do |inbox|
+          inbox.send(nil)
         rescue Ractor::ClosedError
           # Already stopped.
         end
@@ -106,10 +122,22 @@ module CDC
               "#{processor.class} must declare ractor_safe!"
       end
 
-      def build_worker(processor) # rubocop:disable Metrics/MethodLength
-        ::Ractor.new(processor) do |safe_processor|
+      def build_worker(processor)
+        boot_port = ::Ractor::Port.new
+        worker = start_worker(processor, boot_port)
+
+        [worker, boot_port.receive]
+      ensure
+        boot_port&.close
+      end
+
+      def start_worker(processor, boot_port) # rubocop:disable Metrics/MethodLength
+        ::Ractor.new(processor, boot_port) do |safe_processor, ready_port|
+          inbox = ::Ractor::Port.new
+          ready_port << inbox
+
           loop do
-            message = ::Ractor.receive
+            message = inbox.receive
             break if message.nil?
 
             index, item, reply_port = message
@@ -131,13 +159,13 @@ module CDC
         end
       end
 
-      def next_worker
-        worker = @workers[@next_worker]
+      def next_worker_inbox
+        inbox = @worker_inboxes[@next_worker]
 
         @next_worker += 1
-        @next_worker = 0 if @next_worker >= @workers.length
+        @next_worker = 0 if @next_worker >= @worker_inboxes.length
 
-        worker
+        inbox
       end
 
       def collect_results(reply_port, count)

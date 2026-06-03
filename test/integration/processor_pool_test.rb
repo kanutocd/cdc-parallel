@@ -31,6 +31,21 @@ class ProcessorPoolTest < Minitest::Test
     pool&.shutdown
   end
 
+  def test_accepts_concurrent_threaded_callers
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
+    threads = 4.times.map do
+      Thread.new { pool.process_many(Array.new(10) { change_event }) }
+    end
+
+    results = threads.flat_map(&:value)
+
+    assert_equal 40, results.length
+    assert results.all?(&:success?)
+  ensure
+    pool&.shutdown
+    threads&.each(&:join)
+  end
+
   def test_wraps_processor_error
     pool = CDC::Parallel::ProcessorPool.new(processor: FailingProcessor.new, size: 1)
 

@@ -8,7 +8,11 @@ module CDC
 
       @workers: untyped
 
+      @worker_inboxes: untyped
+
       @next_worker: Integer
+
+      @dispatch_mutex: untyped
 
       @shutdown: untyped
 
@@ -37,6 +41,8 @@ module CDC
 
       private
 
+      def dispatch: (untyped work_items, untyped reply_port) -> untyped
+
       def signal_workers: () -> untyped
 
       def wait_for_workers: () -> untyped
@@ -47,7 +53,9 @@ module CDC
 
       def build_worker: (untyped processor) -> untyped
 
-      def next_worker: () -> untyped
+      def start_worker: (untyped processor, untyped boot_port) -> untyped
+
+      def next_worker_inbox: () -> untyped
 
       def collect_results: (untyped reply_port, Integer count) -> untyped
 

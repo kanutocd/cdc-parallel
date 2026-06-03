@@ -82,6 +82,39 @@ Unsafe processors raise:
 CDC::Parallel::UnsafeProcessorError
 ```
 
+## Concurrency Contract
+
+`CDC::Parallel::ProcessorPool` accepts submissions from multiple Ruby threads.
+Dispatch state is synchronized inside the pool, while processor execution occurs
+inside isolated Ruby 4 Ractors.
+
+Workers own their `Ractor::Port` inboxes. The pool sends work to those inboxes,
+and workers send results back to a caller-owned reply port.
+
+```text
+Caller Thread A ─┐
+Caller Thread B ─┼─> ProcessorPool
+Caller Thread C ─┘        │
+                          │ synchronized dispatch
+                          ▼
+                +-------------------+
+                | worker selection  |
+                +-------------------+
+                  │       │       │
+                  ▼       ▼       ▼
+            inbox port inbox port inbox port
+                  │       │       │
+                  ▼       ▼       ▼
+            Ractor 1  Ractor 2  Ractor 3
+                  │       │       │
+                  └───┬───┴───┬───┘
+                      ▼       ▼
+             caller-owned   reply port
+                      │
+                      ▼
+             ordered ProcessorResult[]
+```
+
 ## What Belongs Here
 
 - Ractor processor execution
@@ -219,7 +252,7 @@ The benchmark image is intended to become the shared performance validation
 pattern across CDC Ecosystem gems, enabling reproducible benchmark execution
 locally, in CI, and across different development environments.
 
-### Example Result
+### Example Results
 
 Environment:
 
@@ -227,19 +260,67 @@ Environment:
 * x86_64 Linux
 * 4 workers
 
-CPU workload (`BENCHMARK_CPU_ROUNDS=5000`):
+These example results were captured on 2026-06-03 using the Port-backed
+pre-warmed worker pool.
+
+Tiny workload:
 
 ```json
 {
+  "workload": "tiny",
   "serial": {
-    "events_per_second": 120.26
+    "elapsed_seconds": 0.00785,
+    "events_per_second": 127389.15
   },
   "parallel": {
-    "events_per_second": 250.15
+    "elapsed_seconds": 0.008903,
+    "events_per_second": 112321.8
   },
   "ratio": {
-    "parallel_to_serial": 2.08
-  }
+    "parallel_to_serial": 0.8817
+  },
+  "interpretation": "serial faster"
+}
+```
+
+CPU workload (`BENCHMARK_CPU_ROUNDS=250`):
+
+```json
+{
+  "workload": "cpu",
+  "serial": {
+    "elapsed_seconds": 0.550913,
+    "events_per_second": 1815.17
+  },
+  "parallel": {
+    "elapsed_seconds": 0.279549,
+    "events_per_second": 3577.19
+  },
+  "ratio": {
+    "parallel_to_serial": 1.9707
+  },
+  "interpretation": "parallel faster"
+}
+```
+
+Batch workload (`BENCHMARK_BATCH_SIZE=100`):
+
+```json
+{
+  "workload": "batch",
+  "effective_events": 100000,
+  "serial": {
+    "elapsed_seconds": 0.037873,
+    "events_per_second": 2640417.68
+  },
+  "parallel": {
+    "elapsed_seconds": 0.030337,
+    "events_per_second": 3296351.89
+  },
+  "ratio": {
+    "parallel_to_serial": 1.2484
+  },
+  "interpretation": "parallel faster"
 }
 ```
 
@@ -252,6 +333,10 @@ ratio > 1.0  => parallel faster
 ratio = 1.0  => equivalent
 ratio < 1.0  => serial faster
 ```
+
+Tiny workloads primarily measure dispatch overhead, so serial execution may be
+faster. CPU-bound and batched workloads are better indicators of useful
+parallel throughput.
 
 ### Reproducibility
 

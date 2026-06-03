@@ -48,9 +48,12 @@ class ProcessorPoolUnitTest < Minitest::Test
   def test_prewarms_workers_during_initialization
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
     workers = pool.instance_variable_get(:@workers)
+    inboxes = pool.instance_variable_get(:@worker_inboxes)
 
     assert_equal 2, workers.length
+    assert_equal 2, inboxes.length
     assert(workers.all? { |worker| worker.is_a?(::Ractor) })
+    assert(inboxes.all? { |inbox| inbox.is_a?(::Ractor::Port) })
   ensure
     pool&.shutdown
   end
