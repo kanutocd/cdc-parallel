@@ -17,11 +17,11 @@ The benchmark is designed to answer practical runtime questions:
 
 ## Workloads
 
-| Workload | Purpose                                 | Default options        |
-| -------- | --------------------------------------- | ---------------------- |
-| tiny     | Measures processor-pool dispatch cost   | none                   |
-| cpu      | Measures CPU-bound processing throughput | `cpu_rounds: 250`      |
-| batch    | Measures CDC-style batch throughput      | `batch_size: 100`      |
+| Workload | Purpose                                  | Default options   |
+| -------- | ---------------------------------------- | ----------------- |
+| tiny     | Measures processor-pool dispatch cost    | none              |
+| cpu      | Measures CPU-bound processing throughput | `cpu_rounds: 250` |
+| batch    | Measures CDC-style batch throughput      | `batch_size: 100` |
 
 Tiny workloads intentionally do almost no work. They are useful for measuring
 runtime overhead, but they are not expected to make parallel execution look
@@ -44,17 +44,17 @@ The benchmark compares three execution modes.
 
 ## Configuration
 
-| Environment variable       | Default          | Meaning                                      |
-| -------------------------- | ---------------- | -------------------------------------------- |
-| `BENCHMARK_WORKLOAD`       | `tiny`           | `tiny`, `cpu`, or `batch`                    |
-| `BENCHMARK_ITERATIONS`     | `1000`           | Work items submitted per pass                |
-| `BENCHMARK_WARMUP`         | `100`            | Warmup work items before measurement         |
-| `BENCHMARK_TRIALS`         | `5`              | Number of measured trials                    |
-| `BENCHMARK_MIN_DURATION`   | `0.1`            | Minimum seconds per trial                    |
-| `BENCHMARK_WORKERS`        | `Etc.nprocessors` | Single worker count when no sweep is given |
-| `BENCHMARK_WORKER_COUNTS`  | unset            | Comma-separated worker sweep, e.g. `1,2,4`  |
-| `BENCHMARK_CPU_ROUNDS`     | `250`            | SHA256 rounds for the CPU workload           |
-| `BENCHMARK_BATCH_SIZE`     | `100`            | Events inside each batch workload item       |
+| Environment variable      | Default           | Meaning                                    |
+| ------------------------- | ----------------- | ------------------------------------------ |
+| `BENCHMARK_WORKLOAD`      | `tiny`            | `tiny`, `cpu`, or `batch`                  |
+| `BENCHMARK_ITERATIONS`    | `1000`            | Work items submitted per pass              |
+| `BENCHMARK_WARMUP`        | `100`             | Warmup work items before measurement       |
+| `BENCHMARK_TRIALS`        | `5`               | Number of measured trials                  |
+| `BENCHMARK_MIN_DURATION`  | `0.1`             | Minimum seconds per trial                  |
+| `BENCHMARK_WORKERS`       | `Etc.nprocessors` | Single worker count when no sweep is given |
+| `BENCHMARK_WORKER_COUNTS` | unset             | Comma-separated worker sweep, e.g. `1,2,4` |
+| `BENCHMARK_CPU_ROUNDS`    | `250`             | SHA256 rounds for the CPU workload         |
+| `BENCHMARK_BATCH_SIZE`    | `100`             | Events inside each batch workload item     |
 
 `BENCHMARK_WORKER_COUNTS` takes precedence over `BENCHMARK_WORKERS`.
 
@@ -90,26 +90,26 @@ The benchmark prints JSON.
 
 Top-level fields:
 
-| Field            | Meaning                                      |
-| ---------------- | -------------------------------------------- |
-| `benchmark`      | Benchmark name                               |
-| `gem`            | Gem name                                     |
-| `timestamp`      | UTC timestamp                                |
-| `environment`    | Ruby, platform, host, CPU, and uname metadata |
-| `config`         | Benchmark configuration                      |
-| `workload_options` | Workload-specific options                  |
-| `serial`         | Serial execution distribution                |
-| `worker_sweep`   | Parallel mode distributions by worker count  |
-| `interpretation` | Ratio interpretation guide                   |
+| Field              | Meaning                                       |
+| ------------------ | --------------------------------------------- |
+| `benchmark`        | Benchmark name                                |
+| `gem`              | Gem name                                      |
+| `timestamp`        | UTC timestamp                                 |
+| `environment`      | Ruby, platform, host, CPU, and uname metadata |
+| `config`           | Benchmark configuration                       |
+| `workload_options` | Workload-specific options                     |
+| `serial`           | Serial execution distribution                 |
+| `worker_sweep`     | Parallel mode distributions by worker count   |
+| `interpretation`   | Ratio interpretation guide                    |
 
 Each distribution includes:
 
-| Field    | Meaning                          |
-| -------- | -------------------------------- |
-| `min`    | Fastest observed value           |
-| `median` | Median observed value            |
-| `max`    | Slowest observed value           |
-| `p95`    | 95th percentile observed value   |
+| Field    | Meaning                        |
+| -------- | ------------------------------ |
+| `min`    | Fastest observed value         |
+| `median` | Median observed value          |
+| `max`    | Slowest observed value         |
+| `p95`    | 95th percentile observed value |
 
 Each mode also includes `raw_trials` so results can be inspected or reprocessed.
 
@@ -179,3 +179,9 @@ Benchmark results vary depending on:
 
 Use multiple trials, a minimum measurement duration, and worker-count sweeps
 when comparing results across machines or releases.
+
+## Additional Examples
+
+See:
+
+- [RATOMIC.md](./RATOMIC.md) — Shared-state metrics using Ratomic::Map and Ratomic::Counter
