@@ -24,11 +24,19 @@ Ratomic::Counter
 
 ## Running
 
-...
+```bash
+RATOMIC_POC_EVENTS=100 RATOMIC_POC_WARMUP=10 RATOMIC_POC_TRIALS=1 RATOMIC_POC_WORKERS=2 bundle exec ruby benchmark/ratomic_cdc_parallel_poc.rb
+```
 
-## Example Output
+## Example Result
 
-...
+```tttt
+
+  - events_processed: 100
+  - events_failed: 0
+  - metrics["events.total"]: 100
+
+```
 
 ## Ideas
 
