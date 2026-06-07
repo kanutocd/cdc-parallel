@@ -32,6 +32,14 @@ class ProcessorPoolUnitTest < Minitest::Test
     pool&.shutdown
   end
 
+  def test_process_many_raises_when_item_cannot_be_shared
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+
+    assert_raises(Ractor::IsolationError) { pool.process_many([proc {}]) }
+  ensure
+    pool&.shutdown
+  end
+
   def test_timeout_result_when_deadline_has_already_expired
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1, timeout: 0.000000001)
     reply_port = ::Ractor::Port.new

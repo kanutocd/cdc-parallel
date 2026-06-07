@@ -2,15 +2,83 @@
 
 module CDC
   module Parallel
-    # Executes one Ractor-safe processor in pre-warmed persistent Ractor workers.
+    # Executes one Ractor-safe processor using a pool of pre-warmed,
+    # persistent Ractor workers.
     #
     # Workers are created during initialization and reused for every dispatch.
     # This pays Ractor startup cost once, keeps workers alive after processor
     # failures, and provides both synchronous single-item processing and batched
-    # dispatch for throughput-oriented benchmarks and runtimes.
+    # dispatch for throughput-oriented workloads.
+    #
+    # Architecture
+    #
+    # The pool implements a classic fan-out / fan-in pattern:
+    #
+    #   work items
+    #        |
+    #        v
+    #   ProcessorPool
+    #        |
+    #        +----> Worker Ractor 1
+    #        |
+    #        +----> Worker Ractor 2
+    #        |
+    #        +----> Worker Ractor N
+    #                    |
+    #                    v
+    #              ProcessorResult
+    #                    |
+    #                    v
+    #              reply_port
+    #                    |
+    #                    v
+    #             ordered results
+    #
+    # Fan-out:
+    #
+    # * Work items are distributed across worker-owned inbox ports.
+    # * Dispatch uses round-robin worker selection.
+    # * Multiple items may execute concurrently in different Ractors.
+    #
+    # Fan-in:
+    #
+    # * Workers publish results to a shared reply port.
+    # * Results may arrive out of execution order.
+    # * ProcessorPool reorders responses using submission indexes so the
+    #   returned array always matches the input order.
+    #
+    # Example:
+    #
+    #   Input:
+    #     [A, B, C, D]
+    #
+    #   Completion:
+    #     C, A, D, B
+    #
+    #   Returned:
+    #     [result_A, result_B, result_C, result_D]
     #
     # Submission is safe from multiple Ruby threads. Work is delivered to
     # worker-owned Ractor::Port inboxes and executed inside isolated Ractors.
+    # Advanced execution strategies
+    #
+    # ProcessorPool guarantees fan-out across pre-warmed Ractor workers.
+    # It does not guarantee, manage, or validate any additional concurrency
+    # created inside a worker Ractor.
+    #
+    # A processor may choose to create threads, fibers, Async tasks, or other
+    # local concurrency inside its own Ractor execution context, but that is
+    # the processor implementor's responsibility.
+    #
+    # Declaring ractor_safe! only means the processor can cross the Ractor
+    # boundary and execute inside a worker Ractor. It does not automatically
+    # make any internal threads, fibers, clients, connection pools, caches,
+    # or mutable state safe.
+    #
+    # In short: cdc-parallel provides the outer parallel execution boundary.
+    # Inner concurrency is possible, but "thread" lightly.
+    #
+    # @see CDC::Parallel::ResultCollector
     class ProcessorPool # rubocop:disable Metrics/ClassLength
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
