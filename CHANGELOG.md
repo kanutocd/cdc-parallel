@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [0.3.0] - 2026-06-03
+## Unreleased
+
+No unreleased changes.
+
+## [0.2.3] - 2026-06-03
 
 ### Added
 
+- Added Port-native `Ractor::Port` worker inbox dispatch for the pre-warmed processor pool.
+- Added concurrent threaded caller regression coverage for `ProcessorPool#process_many`.
+- Added worker inbox boot verification coverage.
 - Added multi-trial processor-pool benchmark reporting with min, median, max, and p95 distributions.
 - Added minimum measurement duration support for benchmark trials.
 - Added worker-count sweep support through `BENCHMARK_WORKER_COUNTS`.
@@ -17,33 +24,39 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Changed
 
+- Updated worker dispatch to send work through worker-owned inbox ports instead of direct worker messages.
+- Synchronized dispatch and shutdown with a mutex so multiple Ruby threads can submit work safely.
+- Updated processor pool RBS signatures for worker inboxes and Port-native dispatch helpers.
+- Expanded README documentation for the worker dispatch model.
 - Updated README benchmark guidance to point to the detailed benchmark report documentation.
 - Updated benchmark ratio reporting to compare median throughput against serial execution.
 
- ## [0.2.2] - 2026-06-03
+## [0.2.2] - 2026-06-03
 
-  ### Changed
+### Changed
 
-  - Improved processor pool shutdown so workers are signaled and confirmed stopped where practical.
-  - Updated transaction processing so partial event failures fail the transaction result while preserving per-event results.
-  - Added CI validation for RBS signatures.
+- Improved processor pool shutdown so workers are signaled and confirmed stopped where practical.
+- Updated transaction processing so partial event failures fail the transaction result while preserving per-event results.
+- Added CI validation for RBS signatures.
 
-  ### Added
+### Added
 
-  - Added regression coverage for shutdown after processed and pending work.
-  - Added regression coverage for timeout-bounded shutdown behavior.
-  - Added regression coverage for `process_many([])` returning a clean empty result.
-  - Added transaction pool coverage for successful and partially failed transactions.
+- Added regression coverage for shutdown after processed and pending work.
+- Added regression coverage for timeout-bounded shutdown behavior.
+- Added regression coverage for `process_many([])` returning a clean empty result.
+- Added transaction pool coverage for successful and partially failed transactions.
 
 ## [0.2.1] - 2026-06-03
 
 ### Added
 
-  v0.2.1 - Correctness and reliability patch
+- Enforced processor timeout handling.
+- Fixed transaction partial-failure behavior.
+- Added regression coverage for hung processors and transaction failure cases.
 
-  - Enforced processor timeout handling.
-  - Fixed transaction partial-failure behavior.
-  - Added regression coverage for hung processors and transaction failure cases.
+### Changed
+
+- Released a correctness and reliability patch.
 
 ## [0.2.0] - 2026-06-03
 
@@ -73,7 +86,12 @@ Local benchmark results on Ruby 4.0.5 (4 workers) demonstrated measurable throug
 
 Benchmark results vary by hardware, operating system, Ruby version, and workload characteristics. Users are encouraged to reproduce results on their own systems using the included benchmark suite.
 
+## [0.1.1] - 2026-06-03
 
+No code changes.
+
+Improves RubyGems metadata and documentation wording to
+explicitly identify CDC as Change Data Capture.
 
 ## [0.1.0] - 2026-05-31
 
@@ -93,10 +111,3 @@ Benchmark results vary by hardware, operating system, Ruby version, and workload
 - Added Minitest suite.
 - Added README and example.
 - Added CI and release workflows.
-
-## [0.1.1] - 2026-06-03
-
-No code changes.
-
-Improves RubyGems metadata and documentation wording to
-explicitly identify CDC as Change Data Capture.
