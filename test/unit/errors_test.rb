@@ -26,4 +26,16 @@ class ErrorsTest < Minitest::Test
     assert_empty error.original_backtrace
     assert_nil error.backtrace
   end
+
+  def test_processor_execution_error_freezes_backtrace
+    backtrace = ["processor.rb:42:in `process'"]
+
+    error = CDC::Parallel::ProcessorExecutionError.new(
+      original_class: "RuntimeError",
+      original_message: "boom",
+      original_backtrace: backtrace
+    )
+
+    assert_predicate error.original_backtrace, :frozen?
+  end
 end

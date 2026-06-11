@@ -32,6 +32,16 @@ class ProcessorPoolUnitTest < Minitest::Test
     pool&.shutdown
   end
 
+  def test_process_many_accepts_empty_batch_with_timeout
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1, timeout: 1)
+    results = pool.process_many([])
+
+    assert_empty results
+    assert_predicate results, :frozen?
+  ensure
+    pool&.shutdown
+  end
+
   def test_process_many_raises_when_item_cannot_be_shared
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
 
@@ -53,6 +63,28 @@ class ProcessorPoolUnitTest < Minitest::Test
     pool&.shutdown
   end
 
+  def test_wait_for_workers_with_timeout_returns_when_timeout_is_nil
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+
+    assert_nil pool.send(:wait_for_workers_with_timeout)
+  ensure
+    pool&.shutdown
+  end
+
+  def test_collect_results_with_timeout_returns_frozen_results_when_timeout_is_nil
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+    reply_port = ::Ractor::Port.new
+    results = []
+
+    returned = pool.send(:collect_results_with_timeout, reply_port, results)
+
+    assert_same results, returned
+    assert_predicate returned, :frozen?
+  ensure
+    reply_port&.close
+    pool&.shutdown
+  end
+
   def test_prewarms_workers_during_initialization
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 2)
     workers = pool.instance_variable_get(:@workers)
@@ -68,6 +100,15 @@ class ProcessorPoolUnitTest < Minitest::Test
 
   def test_shutdown_is_idempotent
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
+
+    pool.shutdown
+    pool.shutdown
+
+    assert true
+  end
+
+  def test_shutdown_is_idempotent_with_timeout
+    pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1, timeout: 1)
 
     pool.shutdown
     pool.shutdown

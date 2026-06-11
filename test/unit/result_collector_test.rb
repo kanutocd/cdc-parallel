@@ -31,6 +31,15 @@ class ResultCollectorTest < Minitest::Test
     assert_equal ["worker.rb:1:in `process'"], payload[:backtrace]
   end
 
+  def test_worker_failure_payload_uses_empty_backtrace_when_error_has_none
+    error = RuntimeError.new("boom")
+    error.set_backtrace(nil)
+
+    payload = CDC::Parallel::ResultCollector.worker_failure(error)
+
+    assert_equal [], payload[:backtrace]
+  end
+
   def test_normalizes_worker_failure_payload
     payload = CDC::Parallel::ResultCollector.worker_failure(ArgumentError.new("bad input"))
 

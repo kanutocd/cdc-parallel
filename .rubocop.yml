@@ -4,6 +4,8 @@ plugins:
 
 AllCops:
   TargetRubyVersion: 4.0
+  Exclude:
+    - 'benchmark/**/*'
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
@@ -13,3 +15,6 @@ Style/StringLiteralsInInterpolation:
 
 Metrics/MethodLength:
   Max: 15
+
+Metrics/AbcSize:
+  Max: 20

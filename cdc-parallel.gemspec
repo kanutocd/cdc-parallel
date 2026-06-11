@@ -13,14 +13,14 @@ Gem::Specification.new do |spec|
     cdc-core. It accelerates PostgreSQL Change Data Capture (CDC) event
     processing while preserving the cdc-core programming model.
   TEXT
-  spec.homepage = "https://kanutocd.github.io/cdc-parallel/"
+  spec.homepage = "https://github.com/kanutocd/cdc-parallel"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 4.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/kanutocd/cdc-parallel"
+  spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.metadata["source_code_uri"]}/blob/main/CHANGELOG.md"
-  spec.metadata["documentation_uri"] = spec.homepage
+  spec.metadata["documentation_uri"] = "https://kanutocd.github.io/cdc-parallel/"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir[
@@ -32,5 +32,5 @@ Gem::Specification.new do |spec|
     "LICENSE.txt"
   ]
 
-  spec.add_dependency "cdc-core", "~> 0.1"
+  spec.add_dependency "cdc-core", ">= 0.1"
 end

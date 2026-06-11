@@ -29,6 +29,17 @@ class RuntimeTest < Minitest::Test
     runtime&.shutdown
   end
 
+  def test_process_routes_transaction_envelope
+    runtime = CDC::Parallel::Runtime.new(processor: SafeProcessor.new, size: 2)
+
+    result = runtime.process(transaction)
+
+    assert result.success?
+    assert_equal 1, result.event.length
+  ensure
+    runtime&.shutdown
+  end
+
   def test_rejects_unsafe_processor
     assert_raises(CDC::Parallel::UnsafeProcessorError) do
       CDC::Parallel::Runtime.new(processor: UnsafeProcessor.new, size: 1)
