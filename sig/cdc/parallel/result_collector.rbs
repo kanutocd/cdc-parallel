@@ -4,25 +4,27 @@ module CDC
     class ResultCollector
       FAILURE_MARKER: :__cdc_parallel_failure__
 
+      type failure_payload = Hash[Symbol, :__cdc_parallel_failure__ | String | Array[String] | nil]
+
       # Build a shareable success payload that can safely cross a Ractor boundary.
       #
       # @param value [Object]
       # @return [Object]
-      def self.worker_success: (untyped value) -> untyped
+      def self.worker_success: [T] (T value) -> T
 
       # Build a shareable failure payload that can safely cross a Ractor boundary.
       #
       # @param error [Exception]
       # @return [Hash]
-      def self.worker_failure: (untyped error) -> untyped
+      def self.worker_failure: (Exception error) -> failure_payload
 
       # Normalize a worker return value into a ProcessorResult.
       #
       # @param value [Object]
       # @return [CDC::Core::ProcessorResult]
-      def self.normalize: (untyped value) -> untyped
+      def self.normalize: (CDC::Core::ProcessorResult | failure_payload | untyped value) -> CDC::Core::ProcessorResult
 
-      def self.worker_failure?: (untyped value) -> untyped
+      def self.worker_failure?: (untyped value) -> bool
     end
   end
 end

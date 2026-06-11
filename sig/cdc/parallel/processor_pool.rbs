@@ -2,68 +2,73 @@ module CDC
   module Parallel
     # Executes one Ractor-safe processor in pre-warmed persistent Ractor workers.
     class ProcessorPool
-      @processor: untyped
+      type work_item = untyped
+      type result = CDC::Core::ProcessorResult
+      type worker_response = result | Hash[Symbol, untyped] | untyped
+      type reply_port = Ractor::Port
+      type worker_inbox = Ractor::Port
+      @processor: CDC::Core::Processor
 
-      @configuration: untyped
+      @configuration: Configuration
 
-      @workers: untyped
+      @workers: Array[Ractor]
 
-      @worker_inboxes: untyped
+      @worker_inboxes: Array[worker_inbox]
 
       @next_worker: Integer
 
-      @dispatch_mutex: untyped
+      @dispatch_mutex: Mutex
 
-      @shutdown: untyped
+      @shutdown: bool
 
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
       # @param timeout [Float, nil]
       # @return [void]
-      def initialize: (processor: untyped, ?size: untyped, ?timeout: untyped?) -> void
+      def initialize: (processor: CDC::Core::Processor, ?size: Integer, ?timeout: Numeric?) -> void
 
       # Process one work item synchronously.
       #
       # @param item [Object]
       # @return [CDC::Core::ProcessorResult]
-      def process: (untyped item) -> untyped
+      def process: (work_item item) -> result
 
       # Process many work items using the pre-warmed worker pool.
       #
       # @param items [Array<Object>]
       # @return [Array<CDC::Core::ProcessorResult>]
-      def process_many: (untyped items) -> untyped
+      def process_many: (Array[work_item] items) -> Array[result]
 
       # Shut down the pool.
       #
       # @return [void]
-      def shutdown: () -> untyped
+      def shutdown: () -> nil?
 
       private
 
-      def dispatch: (untyped work_items, untyped reply_port) -> untyped
+      def dispatch: (Array[work_item] work_items, reply_port reply_port) -> Array[work_item]
 
-      def signal_workers: () -> untyped
+      def signal_workers: () -> Array[worker_inbox]
 
       def wait_for_workers: () -> untyped
 
       def wait_for_workers_with_timeout: () -> untyped
 
-      def validate_processor!: (untyped processor) -> (nil | untyped)
+      def validate_processor!: (CDC::Core::Processor processor) -> nil
 
-      def build_worker: (untyped processor) -> untyped
+      def build_worker: (CDC::Core::Processor processor) -> ([Ractor, worker_inbox] | Array[untyped])
 
-      def start_worker: (untyped processor, untyped boot_port) -> untyped
+      def start_worker: (CDC::Core::Processor processor, Ractor::Port boot_port) -> Ractor
 
-      def next_worker_inbox: () -> untyped
+      def next_worker_inbox: () -> worker_inbox
 
-      def collect_results: (untyped reply_port, Integer count) -> untyped
+      def collect_results: (reply_port reply_port, Integer count) -> Array[result]
 
-      def collect_results_without_timeout: (untyped reply_port, untyped results) -> untyped
+      def collect_results_without_timeout: (reply_port reply_port, Array[result?] results) -> untyped
 
-      def collect_results_with_timeout: (untyped reply_port, untyped results) -> untyped
+      def collect_results_with_timeout: (reply_port reply_port, Array[result?] results) -> untyped
 
-      def timeout_results: (untyped results) -> untyped
+      def timeout_results: (Array[result?] results) -> Array[result]
     end
   end
 end

@@ -1,8 +1,14 @@
 module CDC
   module Parallel
     # Immutable configuration for Ractor runtimes.
-    class Configuration
-      def initialize: (?size: untyped, ?timeout: untyped?) -> void
+    class Configuration < Data
+      attr_reader size: Integer
+
+      attr_reader timeout: Numeric?
+
+      def self.new: (?size: Integer, ?timeout: Numeric?) -> instance
+
+      def initialize: (?size: Integer, ?timeout: Numeric?) -> void
     end
   end
 end

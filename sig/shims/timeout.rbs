@@ -1,3 +1,0 @@
-module Timeout
-  def self.timeout: (untyped sec, untyped klass) { () -> untyped } -> untyped
-end

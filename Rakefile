@@ -64,20 +64,35 @@ YARD::Rake::YardocTask.new(:yard)
 task default: %i[test rubocop yard]
 
 namespace :rbs do
-  desc "Remove all non-shimmed sig files"
-  task :clean do
-    sh "rm -rf ./sig/cdc_parallel.rbs ./sig/cdc"
+  desc "Remove generated RBS prototype files"
+  task :clobber do
+    sh "rm -rf tmp/sig"
   end
 
-  desc "Generate RBS signatures"
-  task :generate do
-    sh "bundle exec rbs prototype rb --out-dir=sig --base-dir=lib lib"
+  desc "Generate disposable RBS prototypes into tmp/sig"
+  task :prototype do
+    sh "rm -rf tmp/sig"
+    sh "mkdir -p tmp/sig"
+    sh "bundle exec rbs prototype rb --out-dir=tmp/sig --base-dir=lib lib"
+
+    unless Dir.exist?("sig")
+      puts "sig/ does not exist; seeding curated signatures from tmp/sig"
+      sh "cp -R tmp/sig sig"
+    end
   end
 
-  desc "Validate RBS signatures"
+  desc "Validate curated RBS signatures with Steep"
   task :validate do
     sh "bundle exec steep check"
   end
+
+  desc "Open diff between curated and generated signatures"
+  task :diff do
+    sh "diff -ru sig tmp/sig || true"
+  end
+
+  desc "Generate disposable RBS prototypes and validate curated signatures"
+  task check: %i[prototype validate]
 end
 
 namespace :benchmark do

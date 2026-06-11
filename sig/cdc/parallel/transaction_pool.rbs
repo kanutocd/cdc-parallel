@@ -2,23 +2,23 @@ module CDC
   module Parallel
     # Processes a TransactionEnvelope as a single ordering-preserving unit.
     class TransactionPool
-      @processor_pool: untyped
+      @processor_pool: ProcessorPool
 
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
       # @param timeout [Float, nil]
-      def initialize: (processor: untyped, ?size: untyped, ?timeout: untyped?) -> void
+      def initialize: (processor: CDC::Core::Processor, ?size: Integer, ?timeout: Numeric?) -> void
 
       # Process all events inside a transaction envelope.
       #
       # @param transaction [CDC::Core::TransactionEnvelope]
       # @return [CDC::Core::ProcessorResult]
-      def process: (untyped transaction) -> untyped
+      def process: (CDC::Core::TransactionEnvelope transaction) -> CDC::Core::ProcessorResult
 
       # Shut down worker resources.
       #
       # @return [void]
-      def shutdown: () -> untyped
+      def shutdown: () -> nil
     end
   end
 end

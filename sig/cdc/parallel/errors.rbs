@@ -18,19 +18,19 @@ module CDC
 
     # Raised when processor execution fails inside a worker Ractor.
     class ProcessorExecutionError < Error
-      @original_class: untyped
+      @original_class: String
 
-      @original_message: untyped
+      @original_message: String
 
-      @original_backtrace: untyped
+      @original_backtrace: Array[String]
 
-      attr_reader original_class: untyped
+      attr_reader original_class: String
 
-      attr_reader original_message: untyped
+      attr_reader original_message: String
 
-      attr_reader original_backtrace: untyped
+      attr_reader original_backtrace: Array[String]
 
-      def initialize: (original_class: untyped, original_message: untyped, ?original_backtrace: untyped) -> void
+      def initialize: (original_class: String?, original_message: String, ?original_backtrace: Array[String]) -> void
     end
 
     # Raised when a worker does not return a result before timeout.
