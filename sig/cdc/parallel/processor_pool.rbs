@@ -46,6 +46,10 @@ module CDC
 
       private
 
+      def self.run_worker_loop: (untyped safe_processor, untyped inbox) -> nil
+
+      def self.worker_response: (untyped safe_processor, work_item item) -> worker_response
+
       def dispatch: (Array[work_item] work_items, reply_port reply_port) -> Array[work_item]
 
       def signal_workers: () -> Array[worker_inbox]

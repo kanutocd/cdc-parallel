@@ -176,15 +176,14 @@ module CDC
       #
       # @return [void]
       def shutdown
-        should_wait = @dispatch_mutex.synchronize do
+        @dispatch_mutex.synchronize do
           return if @shutdown
 
           @shutdown = true
           signal_workers
-          true
         end
 
-        wait_for_workers if should_wait
+        wait_for_workers
       end
 
       private
@@ -245,36 +244,43 @@ module CDC
 
         [worker, boot_port.receive]
       ensure
-        boot_port&.close
+        boot_port.close
       end
 
-      def start_worker(processor, boot_port) # rubocop:disable Metrics/MethodLength
+      def start_worker(processor, boot_port)
         ::Ractor.new(processor, boot_port) do |safe_processor, ready_port|
           inbox = ::Ractor::Port.new
           ready_port << inbox
 
-          loop do
-            message = inbox.receive
-            break if message.nil?
+          CDC::Parallel::ProcessorPool.send(:run_worker_loop, safe_processor, inbox)
+        end
+      end
 
-            index, item, reply_port = message
+      def self.run_worker_loop(safe_processor, inbox)
+        loop do
+          message = inbox.receive
+          break if message.nil?
 
-            response = begin
-              CDC::Parallel::ResultCollector.worker_success(
-                safe_processor.process(item)
-              )
-            rescue StandardError => e
-              CDC::Parallel::ResultCollector.worker_failure(e)
-            end
+          index, item, reply_port = message
+          response = worker_response(safe_processor, item)
 
-            begin
-              reply_port << [index, response]
-            rescue Ractor::ClosedError
-              # The caller may have timed out and closed the reply port.
-            end
+          begin
+            reply_port << [index, response]
+          rescue Ractor::ClosedError
+            # The caller may have timed out and closed the reply port.
           end
         end
       end
+      private_class_method :run_worker_loop
+
+      def self.worker_response(safe_processor, item)
+        CDC::Parallel::ResultCollector.worker_success(
+          safe_processor.process(item)
+        )
+      rescue StandardError => e
+        CDC::Parallel::ResultCollector.worker_failure(e)
+      end
+      private_class_method :worker_response
 
       def next_worker_inbox
         inbox = @worker_inboxes[@next_worker]

@@ -10,6 +10,7 @@ AllCops:
     - 'coverage/**/*'
     - 'doc/**/*'
     - 'pkg/**/*'
+    - 'sig/**/*'
     - 'tmp/**/*'
     - 'vendor/**/*'
 

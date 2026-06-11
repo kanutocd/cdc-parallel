@@ -4,7 +4,7 @@ require_relative "../test_helper"
 require_relative "../support/processors"
 require_relative "../support/events"
 
-class ProcessorPoolUnitTest < Minitest::Test
+class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLength
   include EventFixtures
 
   def test_rejects_unsafe_processor
@@ -124,12 +124,71 @@ class ProcessorPoolUnitTest < Minitest::Test
     pool.shutdown
 
     assert result.success?
-    assert(workers.all? { |worker| terminated?(worker) })
+    assert(workers.all? { |worker| worker.join.equal?(worker) })
+  end
+
+  def test_worker_loop_exits_on_stop_message
+    inbox = inbox_with(nil)
+
+    assert_nil CDC::Parallel::ProcessorPool.send(:run_worker_loop, SafeProcessor.new, inbox)
+  end
+
+  def test_worker_loop_processes_work_message
+    reply_port = recording_reply_port
+    inbox = inbox_with([0, change_event, reply_port], nil)
+
+    CDC::Parallel::ProcessorPool.send(:run_worker_loop, SafeProcessor.new, inbox)
+    index, response = reply_port.messages.fetch(0)
+    result = CDC::Parallel::ResultCollector.normalize(response)
+
+    assert_equal 0, index
+    assert result.success?
+    assert_equal "users", result.event[:table]
+  end
+
+  def test_worker_loop_serializes_processor_failure
+    reply_port = recording_reply_port
+    inbox = inbox_with([0, change_event, reply_port], nil)
+
+    CDC::Parallel::ProcessorPool.send(:run_worker_loop, FailingProcessor.new, inbox)
+    _index, response = reply_port.messages.fetch(0)
+    result = CDC::Parallel::ResultCollector.normalize(response)
+
+    assert result.failure?
+    assert_instance_of CDC::Parallel::ProcessorExecutionError, result.error
+  end
+
+  def test_worker_loop_tolerates_closed_reply_port
+    reply_port = closed_reply_port
+    inbox = inbox_with([0, change_event, reply_port], nil)
+
+    assert_nil CDC::Parallel::ProcessorPool.send(:run_worker_loop, SafeProcessor.new, inbox)
   end
 
   private
 
-  def terminated?(worker)
-    worker.inspect.include?("terminated")
+  def inbox_with(*messages)
+    messages = messages.dup
+
+    Object.new.tap do |inbox|
+      inbox.define_singleton_method(:receive) { messages.shift }
+    end
+  end
+
+  def recording_reply_port
+    messages = []
+
+    Object.new.tap do |port|
+      port.define_singleton_method(:messages) { messages }
+      port.define_singleton_method(:<<) { |message| messages << message }
+    end
+  end
+
+  def closed_reply_port
+    Object.new.tap do |port|
+      port.define_singleton_method(:<<) do |_message|
+        raise Ractor::ClosedError, "reply port closed"
+      end
+    end
   end
 end

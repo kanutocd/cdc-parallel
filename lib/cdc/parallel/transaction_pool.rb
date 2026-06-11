@@ -60,7 +60,14 @@ module CDC
         results = @processor_pool.process_many(transaction.events).freeze
         failure = results.find(&:failure?)
 
-        return CDC::Core::ProcessorResult.failure(failure.error, event: results) if failure
+        if failure
+          error = failure.error || ProcessorExecutionError.new(
+            original_class: "CDC::Core::ProcessorResult",
+            original_message: "failed processor result did not include an error"
+          )
+
+          return CDC::Core::ProcessorResult.failure(error, event: results)
+        end
 
         CDC::Core::ProcessorResult.success(results)
       end
