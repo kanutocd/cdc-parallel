@@ -3,9 +3,15 @@ plugins:
   - rubocop-rake
 
 AllCops:
+  NewCops: disable
   TargetRubyVersion: 4.0
   Exclude:
     - 'benchmark/**/*'
+    - 'coverage/**/*'
+    - 'doc/**/*'
+    - 'pkg/**/*'
+    - 'tmp/**/*'
+    - 'vendor/**/*'
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
