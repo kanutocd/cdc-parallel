@@ -7,6 +7,7 @@ require_relative "../support/events"
 # Verifies that ProcessorPool, TransactionPool, and Runtime honour the
 # cdc-core CDC::Core::Processor lifecycle contract: start / stop / flush /
 # healthy?.
+# rubocop:disable Metrics/ClassLength
 class ProcessorLifecycleContractTest < Minitest::Test
   include EventFixtures
 
@@ -216,3 +217,4 @@ class ProcessorLifecycleContractTest < Minitest::Test
     assert LifecycleTrackingProcessor.new.healthy?
   end
 end
+# rubocop:enable Metrics/ClassLength

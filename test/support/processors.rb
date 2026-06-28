@@ -99,10 +99,11 @@ end
 # processor is passed to a pool. To work around this, call records are kept in a
 # class-level hash keyed by object_id. The hash is never passed across a Ractor
 # boundary and is only accessed from the test thread.
+# rubocop:disable Lint/HashCompareByIdentity
 class LifecycleTrackingProcessor < CDC::Core::Processor
   ractor_safe!
 
-  CALL_LOG = Hash.new { |h, k| h[k] = [] } # rubocop:disable Style/MutableConstant
+  CALL_LOG = Hash.new { |h, k| h[k] = [] }
 
   def self.reset_logs
     CALL_LOG.clear
@@ -134,6 +135,7 @@ class LifecycleTrackingProcessor < CDC::Core::Processor
     )
   end
 end
+# rubocop:enable Lint/HashCompareByIdentity
 
 # Always reports healthy? => false.
 class UnhealthyProcessor < CDC::Core::Processor
@@ -150,13 +152,12 @@ class UnhealthyProcessor < CDC::Core::Processor
   end
 end
 
-
 # Crashes the worker Ractor by raising outside the StandardError hierarchy.
 class FatalProcessor < CDC::Core::Processor
   ractor_safe!
 
   def process(_event)
-    raise Exception, "fatal worker death" # rubocop:disable Lint/RescueException
+    raise Exception, "fatal worker death" # rubocop:disable Lint/RaiseException
   end
 end
 
@@ -179,13 +180,12 @@ class MutableStartProcessor < CDC::Core::Processor
   end
 end
 
-
 # Crashes only for events whose table is "boom".
 class ConditionalFatalProcessor < CDC::Core::Processor
   ractor_safe!
 
   def process(event)
-    raise Exception, "fatal worker death" if event.table == "boom" # rubocop:disable Lint/RescueException
+    raise Exception, "fatal worker death" if event.table == "boom" # rubocop:disable Lint/RaiseException
 
     CDC::Core::ProcessorResult.success(
       ::Ractor.make_shareable({ table: event.table })

@@ -6,7 +6,18 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## Unreleased
 
-No unreleased changes.
+## [0.2.4] - 2026-06-28
+
+### Fixed
+
+- Started `Runtime` processors before internal pools shareablize the processor object graph.
+- Forwarded `Runtime` supervisor tuning options to both event and transaction pools.
+
+### Added
+
+- Added fatal-worker supervisor regression tests for respawn, degraded cooldown, and shutdown behavior.
+- Added runtime regression tests for lifecycle ordering and supervisor option forwarding.
+- Updated RBS signatures and supervisor plan documentation for the new runtime contract.
 
 ## [0.2.3] - 2026-06-03
 

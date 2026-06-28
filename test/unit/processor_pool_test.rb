@@ -86,7 +86,6 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     pool&.shutdown
   end
 
-
   def test_collect_results_without_timeout_does_not_require_assignments
     pool = CDC::Parallel::ProcessorPool.new(processor: SafeProcessor.new, size: 1)
     reply_port = receive_reply_port_for([0, :ok])
@@ -154,8 +153,6 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     assert result.success?
     assert(workers.all? { |worker| worker.join.equal?(worker) })
   end
-
-
 
   def test_supervisor_respawns_worker_after_fatal_death
     pool = CDC::Parallel::ProcessorPool.new(processor: ConditionalFatalProcessor.new, size: 1, timeout: 1)
@@ -233,6 +230,7 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     slot&.join
   end
 
+  # rubocop:disable Metrics/MethodLength
   def test_worker_slot_rejects_work_while_degraded
     slot = worker_slot
     reply_port = ::Ractor::Port.new
@@ -255,6 +253,7 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     slot&.shutdown
     slot&.join
   end
+  # rubocop:enable Metrics/MethodLength
 
   def test_worker_slot_clears_expired_degraded_state
     slot = worker_slot
@@ -285,7 +284,6 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     slot&.join
   end
 
-
   def test_start_worker_boots_worker_and_reports_inbox
     boot_port = ::Ractor::Port.new
     worker = CDC::Parallel::ProcessorPool.send(
@@ -302,6 +300,8 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     boot_port&.close
   end
 
+  # rubocop:disable Metrics/MethodLength
+  # rubocop:disable Metrics/AbcSize
   def test_worker_slot_reports_failure_when_inbox_is_closed_before_send
     slot = worker_slot
     original_inbox = slot.inbox
@@ -331,6 +331,8 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     original_inbox&.send(nil)
     slot&.join
   end
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/AbcSize
 
   def test_worker_slot_send_failure_tolerates_closed_reply_port
     slot = worker_slot
@@ -381,14 +383,14 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
 
   private
 
-
   def receive_from_port(port, timeout: 1)
     Timeout.timeout(timeout) { port.receive }
   rescue Timeout::Error
     raise Minitest::Assertion, "reply was not received before timeout"
   end
 
-  def worker_slot(processor: SafeProcessor.new, supervision: true, max_respawns: 3, respawn_window: 60, respawn_cooldown: 0.01)
+  def worker_slot(processor: SafeProcessor.new, supervision: true, max_respawns: 3, respawn_window: 60,
+                  respawn_cooldown: 0.01)
     CDC::Parallel::ProcessorPool::WorkerSlot.new(
       index: 0,
       processor: ::Ractor.make_shareable(processor),
@@ -407,7 +409,10 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
 
     until yield
-      raise Minitest::Assertion, "condition was not met before timeout" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        raise Minitest::Assertion,
+              "condition was not met before timeout"
+      end
 
       sleep 0.01
     end
@@ -420,7 +425,6 @@ class ProcessorPoolUnitTest < Minitest::Test # rubocop:disable Metrics/ClassLeng
       inbox.define_singleton_method(:receive) { messages.shift }
     end
   end
-
 
   def receive_reply_port_for(*messages)
     messages = messages.dup

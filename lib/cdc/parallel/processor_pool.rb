@@ -124,6 +124,7 @@ module CDC
       #   Set to `false` when a higher-level runtime (e.g. {Runtime}) owns the
       #   processor lifecycle so that `start`/`stop`/`flush` are not called
       #   multiple times when the same processor is shared across pools.
+      # rubocop:disable Metrics/MethodLength
       def initialize(
         processor:,
         size: Etc.nprocessors,
@@ -157,6 +158,7 @@ module CDC
         @dispatch_mutex = Mutex.new
         @shutdown = false
       end
+      # rubocop:enable Metrics/MethodLength
 
       # Return total worker-slot respawns since this pool booted.
       #
@@ -393,6 +395,7 @@ module CDC
       # them blocked forever.
       #
       # @api private
+      # rubocop:disable Metrics/ClassLength
       class WorkerSlot
         # Number of times this slot has booted a replacement worker.
         #
@@ -614,6 +617,7 @@ module CDC
           @lock.synchronize { @shutdown }
         end
       end
+      # rubocop:enable Metrics/ClassLength
     end
   end
 end

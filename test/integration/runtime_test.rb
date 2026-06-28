@@ -40,8 +40,6 @@ class RuntimeTest < Minitest::Test
     runtime&.shutdown
   end
 
-
-
   def test_starts_processor_before_underlying_pools_shareablize_it
     processor = MutableStartProcessor.new
     runtime = CDC::Parallel::Runtime.new(processor:, size: 1)
