@@ -211,7 +211,7 @@ module CDC
 
         assignments = dispatch(work_items, reply_port)
 
-        collect_results(reply_port, work_items.length, assignments)
+        collect_results(reply_port, work_items.length, assignments).compact.freeze
       ensure
         reply_port&.close
       end
@@ -475,9 +475,9 @@ module CDC
             end
           end
 
-          return send_failure(reply_port, index, immediate_failure) if immediate_failure
+          return send_failure(reply_port, index, require_failure(immediate_failure)) if immediate_failure
 
-          target.send([index, item, reply_port])
+          send_to_inbox(target, [index, item, reply_port])
         rescue Ractor::ClosedError => e
           complete(index)
           send_failure(reply_port, index, e)
@@ -527,8 +527,40 @@ module CDC
             target = @inbox
           end
 
-          target&.send(nil)
+          send_to_inbox(target, nil)
         rescue Ractor::ClosedError
+          nil
+        end
+
+        # Return a non-nil failure object for Steep and runtime dispatch.
+        #
+        # @param failure [Exception, nil]
+        # @return [Exception]
+        # @raise [RuntimeError] if no failure was supplied
+        # @api private
+        def require_failure(failure)
+          raise "worker failure unavailable" if failure.nil?
+
+          failure
+        end
+
+        # Send a message to a worker inbox.
+        #
+        # Ractor::Port supports both #send and #<<. Some tests replace the inbox
+        # with a small sentinel object that only implements #send so the closed
+        # inbox path can be exercised without relying on a live port. Keep this
+        # helper deliberately typed as an inbox boundary rather than forcing every
+        # caller to narrow the test double shape.
+        #
+        # @param inbox [#send, nil]
+        # @param message [Object]
+        # @return [void]
+        # @raise [Ractor::ClosedError] when the worker inbox has already closed
+        # @api private
+        def send_to_inbox(inbox, message)
+          raise Ractor::ClosedError, "worker inbox closed" if inbox.nil?
+
+          inbox.send(message)
           nil
         end
 
@@ -576,11 +608,12 @@ module CDC
           current_worker.value
           RuntimeError.new("worker slot #{@index} exited unexpectedly")
         rescue Ractor::Error => e
-          (e.respond_to?(:cause) && e.cause) || e
+          cause = e.respond_to?(:cause) ? e.cause : nil
+          cause.is_a?(Exception) ? cause : e
         end
 
         def fail_inflight(cause)
-          pending = nil
+          pending = {} # : Hash[Integer, Ractor::Port]
           @lock.synchronize do
             pending = @inflight.dup
             @inflight.clear

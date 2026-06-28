@@ -1,7 +1,13 @@
 module CDC
   module Parallel
+    # Private Data superclass used to keep YARD documentation stable for Configuration.
+    class ConfigurationData < Data
+      attr_reader size: Integer
+      attr_reader timeout: Numeric?
+    end
+
     # Immutable configuration for Ractor runtimes.
-    class Configuration < Data
+    class Configuration < ConfigurationData
       attr_reader size: Integer
 
       attr_reader timeout: Numeric?

@@ -85,11 +85,11 @@ module CDC
 
       def next_worker_slot: () -> WorkerSlot
 
-      def collect_results: (reply_port reply_port, Integer count, ?Array[WorkerSlot?] assignments) -> Array[result]
+      def collect_results: (reply_port reply_port, Integer count, ?Array[WorkerSlot?] assignments) -> Array[result?]
 
-      def collect_results_without_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result]
+      def collect_results_without_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result?]
 
-      def collect_results_with_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result]
+      def collect_results_with_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result?]
 
       def timeout_results: (Array[result?] results) -> Array[result]
 
@@ -137,6 +137,8 @@ module CDC
         def wait_for_worker_death: (Ractor current_worker) -> Exception
         def fail_inflight: (Exception cause) -> void
         def send_failure: (Ractor::Port reply_port, Integer index, Exception error) -> void
+        def require_failure: (Exception? failure) -> Exception
+        def send_to_inbox: (untyped inbox, untyped message) -> void
         def cool_down_if_needed: () -> void
         def crash_loop?: () -> bool
         def shutting_down?: () -> bool
