@@ -109,21 +109,67 @@ module CDC
       # @raise [ArgumentError]
       #   Raised by {Configuration} when `size` or `timeout` is invalid.
       # @return [void]
-      def initialize(processor:, size: Etc.nprocessors, timeout: nil)
+      # @param supervision [Boolean]
+      #   Whether worker Ractors should be respawned after unexpected death.
+      # @param max_respawns [Integer]
+      #   Maximum crash count inside `respawn_window` before a worker slot enters
+      #   cooldown.
+      # @param respawn_window [Numeric]
+      #   Time window, in seconds, used by the crash-loop circuit breaker.
+      # @param respawn_cooldown [Numeric]
+      #   Cooldown, in seconds, before a crash-looping slot is revived again.
+      # @param manage_lifecycle [Boolean]
+      #   When `true` (default), the pool calls `processor.start` during
+      #   initialization and `processor.flush` + `processor.stop` during shutdown.
+      #   Set to `false` when a higher-level runtime (e.g. {Runtime}) owns the
+      #   processor lifecycle so that `start`/`stop`/`flush` are not called
+      #   multiple times when the same processor is shared across pools.
+      def initialize(
+        processor:,
+        size: Etc.nprocessors,
+        timeout: nil,
+        supervision: true,
+        max_respawns: 3,
+        respawn_window: 60,
+        respawn_cooldown: 5,
+        manage_lifecycle: true
+      )
         validate_processor!(processor)
 
+        processor.start if manage_lifecycle
         @processor = ::Ractor.make_shareable(processor)
+        @manage_lifecycle = manage_lifecycle
         @configuration = Configuration.new(size:, timeout:)
-        booted_workers = Array.new(@configuration.size) do
-          build_worker(@processor)
-        end
-
-        @workers = booted_workers.map(&:first).freeze
-        @worker_inboxes = booted_workers.map(&:last).freeze
+        @slots = Array.new(@configuration.size) do |index|
+          WorkerSlot.new(
+            index:,
+            processor: @processor,
+            supervision:,
+            max_respawns:,
+            respawn_window:,
+            respawn_cooldown:
+          )
+        end.freeze
+        @workers = @slots.map(&:worker).freeze
+        @worker_inboxes = @slots.map(&:inbox).freeze
 
         @next_worker = 0
         @dispatch_mutex = Mutex.new
         @shutdown = false
+      end
+
+      # Return total worker-slot respawns since this pool booted.
+      #
+      # @return [Integer]
+      def respawns
+        @slots.sum(&:respawns)
+      end
+
+      # Return whether any worker slot is currently in crash-loop cooldown.
+      #
+      # @return [Boolean]
+      def degraded?
+        @slots.any?(&:degraded?)
       end
 
       # Process one work item synchronously.
@@ -161,9 +207,9 @@ module CDC
         work_items = items.map { |item| ::Ractor.make_shareable(item) }
         reply_port = ::Ractor::Port.new
 
-        dispatch(work_items, reply_port)
+        assignments = dispatch(work_items, reply_port)
 
-        collect_results(reply_port, work_items.length)
+        collect_results(reply_port, work_items.length, assignments)
       ensure
         reply_port&.close
       end
@@ -184,6 +230,10 @@ module CDC
         end
 
         wait_for_workers
+        return unless @manage_lifecycle
+
+        @processor.flush
+        @processor.stop
       end
 
       private
@@ -192,25 +242,25 @@ module CDC
         @dispatch_mutex.synchronize do
           raise ShutdownError, "processor pool has been shut down" if @shutdown
 
+          assignments = Array.new(work_items.length)
           work_items.each_with_index do |item, index|
-            next_worker_inbox.send([index, item, reply_port])
+            slot = next_worker_slot
+            assignments[index] = slot
+            slot.send_work(index, item, reply_port)
           end
+          assignments
         end
       end
 
       def signal_workers
-        @worker_inboxes.each do |inbox|
-          inbox.send(nil)
-        rescue Ractor::ClosedError
-          # Already stopped.
-        end
+        @slots.each(&:shutdown)
       end
 
       def wait_for_workers
         if @configuration.timeout
           wait_for_workers_with_timeout
         else
-          @workers.each(&:join)
+          @slots.each(&:join)
         end
       end
 
@@ -220,11 +270,11 @@ module CDC
 
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
 
-        @workers.each do |worker|
+        @slots.each do |slot|
           remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
           break unless remaining.positive?
 
-          ::Timeout.timeout(remaining, TimeoutError) { worker.join }
+          ::Timeout.timeout(remaining, TimeoutError) { slot.join }
         rescue TimeoutError
           break
         end
@@ -238,16 +288,7 @@ module CDC
               "#{processor.class} must declare ractor_safe!"
       end
 
-      def build_worker(processor)
-        boot_port = ::Ractor::Port.new
-        worker = start_worker(processor, boot_port)
-
-        [worker, boot_port.receive]
-      ensure
-        boot_port.close
-      end
-
-      def start_worker(processor, boot_port)
+      def self.start_worker(processor, boot_port)
         ::Ractor.new(processor, boot_port) do |safe_processor, ready_port|
           inbox = ::Ractor::Port.new
           ready_port << inbox
@@ -255,6 +296,7 @@ module CDC
           CDC::Parallel::ProcessorPool.send(:run_worker_loop, safe_processor, inbox)
         end
       end
+      private_class_method :start_worker
 
       def self.run_worker_loop(safe_processor, inbox)
         loop do
@@ -282,36 +324,37 @@ module CDC
       end
       private_class_method :worker_response
 
-      def next_worker_inbox
-        inbox = @worker_inboxes[@next_worker]
+      def next_worker_slot
+        slot = @slots[@next_worker]
 
         @next_worker += 1
-        @next_worker = 0 if @next_worker >= @worker_inboxes.length
+        @next_worker = 0 if @next_worker >= @slots.length
 
-        inbox
+        slot
       end
 
-      def collect_results(reply_port, count)
+      def collect_results(reply_port, count, assignments = [])
         results = Array.new(count)
         return results.freeze if count.zero?
 
         if @configuration.timeout
-          collect_results_with_timeout(reply_port, results)
+          collect_results_with_timeout(reply_port, results, assignments)
         else
-          collect_results_without_timeout(reply_port, results)
+          collect_results_without_timeout(reply_port, results, assignments)
         end
       end
 
-      def collect_results_without_timeout(reply_port, results)
+      def collect_results_without_timeout(reply_port, results, assignments = [])
         results.length.times do
           index, response = reply_port.receive
           results[index] = ResultCollector.normalize(response)
+          assignments[index]&.complete(index)
         end
 
         results.freeze
       end
 
-      def collect_results_with_timeout(reply_port, results)
+      def collect_results_with_timeout(reply_port, results, assignments = [])
         timeout = @configuration.timeout
         return results.freeze unless timeout
 
@@ -323,6 +366,7 @@ module CDC
 
           index, response = ::Timeout.timeout(remaining, TimeoutError) { reply_port.receive }
           results[index] = ResultCollector.normalize(response)
+          assignments[index]&.complete(index)
         rescue TimeoutError
           return timeout_results(results)
         end
@@ -339,6 +383,236 @@ module CDC
         results.map do |result|
           result || CDC::Core::ProcessorResult.failure(timeout_error)
         end.freeze
+      end
+
+      # One supervised worker position in the pool.
+      #
+      # A slot keeps its identity while its underlying Ractor can be replaced
+      # after unexpected death. The slot also owns in-flight reply ports so a
+      # fatal worker exit can be reported back to callers instead of leaving
+      # them blocked forever.
+      #
+      # @api private
+      class WorkerSlot
+        # Number of times this slot has booted a replacement worker.
+        #
+        # @return [Integer]
+        # @api private
+        attr_reader :respawns
+
+        # Create a supervised worker slot.
+        #
+        # @param index [Integer]
+        #   Stable slot index inside the owning pool.
+        # @param processor [CDC::Core::Processor]
+        #   Shareable processor instance used by the worker.
+        # @param supervision [Boolean]
+        #   Whether unexpected worker death should trigger respawn.
+        # @param max_respawns [Integer]
+        #   Maximum crash count inside the respawn window before cooldown.
+        # @param respawn_window [Numeric]
+        #   Sliding crash-loop window in seconds.
+        # @param respawn_cooldown [Numeric]
+        #   Cooldown duration in seconds after repeated crashes.
+        # @return [void]
+        # @api private
+        def initialize(index:, processor:, supervision:, max_respawns:, respawn_window:, respawn_cooldown:)
+          @index = index
+          @processor = processor
+          @supervision = supervision
+          @max_respawns = Integer(max_respawns)
+          @respawn_window = Float(respawn_window)
+          @respawn_cooldown = Float(respawn_cooldown)
+          @lock = Mutex.new
+          @inflight = {}
+          @crashes = []
+          @respawns = 0
+          @shutdown = false
+          @degraded_until = nil
+          boot!
+          @supervisor_thread = Thread.new { supervise }
+        end
+
+        # Return the current worker Ractor.
+        #
+        # @return [Ractor]
+        # @api private
+        def worker
+          @lock.synchronize { @worker }
+        end
+
+        # Return the current worker inbox port.
+        #
+        # @return [Ractor::Port]
+        # @api private
+        def inbox
+          @lock.synchronize { @inbox }
+        end
+
+        # Send one indexed work item to the current worker.
+        #
+        # If the slot is cooling down or the worker inbox is already closed, a
+        # serialized failure response is sent to the caller reply port.
+        #
+        # @param index [Integer]
+        # @param item [Object]
+        # @param reply_port [Ractor::Port]
+        # @return [void]
+        # @api private
+        def send_work(index, item, reply_port)
+          target = nil
+          immediate_failure = nil
+
+          @lock.synchronize do
+            if degraded_locked?
+              immediate_failure = RuntimeError.new("worker slot #{@index} is cooling down after repeated crashes")
+            else
+              @inflight[index] = reply_port
+              target = @inbox
+            end
+          end
+
+          return send_failure(reply_port, index, immediate_failure) if immediate_failure
+
+          target.send([index, item, reply_port])
+        rescue Ractor::ClosedError => e
+          complete(index)
+          send_failure(reply_port, index, e)
+        end
+
+        # Mark an in-flight work item as completed.
+        #
+        # @param index [Integer]
+        # @return [void]
+        # @api private
+        def complete(index)
+          @lock.synchronize { @inflight.delete(index) }
+        end
+
+        # Return whether this slot is currently in crash-loop cooldown.
+        #
+        # @return [Boolean]
+        # @api private
+        def degraded?
+          @lock.synchronize { degraded_locked? }
+        end
+
+        # Return whether this slot is degraded while the caller holds the lock.
+        #
+        # @return [Boolean]
+        # @api private
+        def degraded_locked?
+          degraded_until = @degraded_until
+          return false unless degraded_until
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= degraded_until
+            @degraded_until = nil
+            false
+          else
+            true
+          end
+        end
+
+        # Request worker shutdown and prevent future respawns.
+        #
+        # @return [void]
+        # @api private
+        def shutdown
+          target = nil
+          @lock.synchronize do
+            @shutdown = true
+            target = @inbox
+          end
+
+          target&.send(nil)
+        rescue Ractor::ClosedError
+          nil
+        end
+
+        # Wait for the supervisor thread to finish.
+        #
+        # @return [Thread]
+        # @api private
+        def join
+          @supervisor_thread.join
+        end
+
+        private
+
+        def boot!
+          boot_port = ::Ractor::Port.new
+          worker = CDC::Parallel::ProcessorPool.send(:start_worker, @processor, boot_port)
+          inbox = boot_port.receive
+
+          @lock.synchronize do
+            @worker = worker
+            @inbox = inbox
+          end
+        ensure
+          boot_port&.close
+        end
+
+        def supervise
+          loop do
+            current_worker = worker
+            cause = wait_for_worker_death(current_worker)
+            break if shutting_down?
+
+            fail_inflight(cause)
+            break unless @supervision
+
+            cool_down_if_needed
+            break if shutting_down?
+
+            boot!
+            @lock.synchronize { @respawns += 1 }
+          end
+        end
+
+        def wait_for_worker_death(current_worker)
+          current_worker.value
+          RuntimeError.new("worker slot #{@index} exited unexpectedly")
+        rescue Ractor::Error => e
+          (e.respond_to?(:cause) && e.cause) || e
+        end
+
+        def fail_inflight(cause)
+          pending = nil
+          @lock.synchronize do
+            pending = @inflight.dup
+            @inflight.clear
+          end
+
+          pending.each { |index, reply_port| send_failure(reply_port, index, cause) }
+        end
+
+        def send_failure(reply_port, index, error)
+          reply_port << [index, ResultCollector.worker_failure(error)]
+        rescue Ractor::ClosedError
+          nil
+        end
+
+        def cool_down_if_needed
+          return unless crash_loop?
+
+          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @respawn_cooldown
+          @lock.synchronize { @degraded_until = deadline }
+          sleep @respawn_cooldown
+          @lock.synchronize { @degraded_until = nil }
+        end
+
+        def crash_loop?
+          now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          @lock.synchronize do
+            @crashes = @crashes.select { |timestamp| now - timestamp <= @respawn_window }
+            @crashes << now
+            @crashes.length > @max_respawns
+          end
+        end
+
+        def shutting_down?
+          @lock.synchronize { @shutdown }
+        end
       end
     end
   end

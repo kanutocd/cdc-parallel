@@ -90,6 +90,12 @@ module CDC
         end
       end
 
+      # Return whether a value is a serialized worker failure payload.
+      #
+      # @param value [Object]
+      #   Raw worker response.
+      # @return [Boolean]
+      # @api private
       def self.worker_failure?(value)
         value.is_a?(Hash) && value[:type] == FAILURE_MARKER
       end

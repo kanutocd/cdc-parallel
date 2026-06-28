@@ -38,11 +38,42 @@ module CDC
       #   Number of worker Ractors in the underlying processor pool.
       # @param timeout [Numeric, nil]
       #   Optional timeout in seconds for result collection and shutdown waits.
+      # @param supervision [Boolean]
+      #   Whether worker Ractors should be respawned after unexpected death.
+      # @param max_respawns [Integer]
+      #   Maximum crash count inside `respawn_window` before a worker slot enters
+      #   cooldown.
+      # @param respawn_window [Numeric]
+      #   Time window, in seconds, used by the crash-loop circuit breaker.
+      # @param respawn_cooldown [Numeric]
+      #   Cooldown, in seconds, before a crash-looping slot is revived again.
+      # @param manage_lifecycle [Boolean]
+      #   When `true` (default), the pool calls `processor.start` during
+      #   initialization and `processor.flush` + `processor.stop` during shutdown.
+      #   Set to `false` when a higher-level runtime owns the processor lifecycle.
       # @raise [UnsafeProcessorError]
       #   Raised when the processor class has not declared `ractor_safe!`.
       # @return [void]
-      def initialize(processor:, size: Etc.nprocessors, timeout: nil)
-        @processor_pool = ProcessorPool.new(processor:, size:, timeout:)
+      def initialize(
+        processor:,
+        size: Etc.nprocessors,
+        timeout: nil,
+        supervision: true,
+        max_respawns: 3,
+        respawn_window: 60,
+        respawn_cooldown: 5,
+        manage_lifecycle: true
+      )
+        @processor_pool = ProcessorPool.new(
+          processor:,
+          size:,
+          timeout:,
+          supervision:,
+          max_respawns:,
+          respawn_window:,
+          respawn_cooldown:,
+          manage_lifecycle:
+        )
       end
 
       # Process all events inside a transaction envelope.

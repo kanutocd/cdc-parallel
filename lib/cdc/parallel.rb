@@ -12,6 +12,12 @@ require_relative "parallel/transaction_pool"
 require_relative "parallel/router"
 require_relative "parallel/runtime"
 
+# Namespace for Change Data Capture ecosystem components.
+#
+# The `cdc-parallel` gem adds the {CDC::Parallel} runtime namespace under
+# this shared ecosystem root.
+#
+# @api public
 module CDC
   # Optional parallel Change Data Capture runtime for `cdc-core` processors.
   #

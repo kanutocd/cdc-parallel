@@ -4,19 +4,25 @@ module CDC
     class Runtime
       type work_item = CDC::Core::ChangeEvent | CDC::Core::TransactionEnvelope
 
+      @processor: CDC::Core::Processor
       @processor_pool: ProcessorPool
-
       @transaction_pool: TransactionPool
-
       @router: Router
-
       @shutdown: bool
 
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
-      # @param timeout [Float, nil]
+      # @param timeout [Numeric, nil]
       # @return [void]
-      def initialize: (processor: CDC::Core::Processor, ?size: Integer, ?timeout: Numeric?) -> void
+      def initialize: (
+        processor: CDC::Core::Processor,
+        ?size: Integer,
+        ?timeout: Numeric?,
+        ?supervision: bool,
+        ?max_respawns: Integer,
+        ?respawn_window: Numeric,
+        ?respawn_cooldown: Numeric
+      ) -> void
 
       # Process a ChangeEvent or TransactionEnvelope.
       #
@@ -31,10 +37,10 @@ module CDC
       # @return [CDC::Core::ProcessorResult]
       def process_transaction: (CDC::Core::TransactionEnvelope transaction) -> CDC::Core::ProcessorResult
 
-      # Shut down all runtime resources.
+      # Shut down all runtime resources and call processor lifecycle hooks.
       #
       # @return [void]
-      def shutdown: () -> nil
+      def shutdown: () -> void
     end
   end
 end

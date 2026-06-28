@@ -7,25 +7,46 @@ module CDC
       type worker_response = result | Hash[Symbol, untyped] | untyped
       type reply_port = Ractor::Port
       type worker_inbox = Ractor::Port
+
       @processor: CDC::Core::Processor
-
       @configuration: Configuration
-
+      @slots: Array[WorkerSlot]
       @workers: Array[Ractor]
-
       @worker_inboxes: Array[worker_inbox]
-
       @next_worker: Integer
-
       @dispatch_mutex: Mutex
-
       @shutdown: bool
+      @manage_lifecycle: bool
 
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
-      # @param timeout [Float, nil]
+      # @param timeout [Numeric, nil]
+      # @param supervision [Boolean]
+      # @param max_respawns [Integer]
+      # @param respawn_window [Numeric]
+      # @param respawn_cooldown [Numeric]
+      # @param manage_lifecycle [Boolean]
       # @return [void]
-      def initialize: (processor: CDC::Core::Processor, ?size: Integer, ?timeout: Numeric?) -> void
+      def initialize: (
+        processor: CDC::Core::Processor,
+        ?size: Integer,
+        ?timeout: Numeric?,
+        ?supervision: bool,
+        ?max_respawns: Integer,
+        ?respawn_window: Numeric,
+        ?respawn_cooldown: Numeric,
+        ?manage_lifecycle: bool
+      ) -> void
+
+      # Total worker-slot respawns since pool boot.
+      #
+      # @return [Integer]
+      def respawns: () -> Integer
+
+      # Whether any worker slot is in crash-loop cooldown.
+      #
+      # @return [Boolean]
+      def degraded?: () -> bool
 
       # Process one work item synchronously.
       #
@@ -39,40 +60,88 @@ module CDC
       # @return [Array<CDC::Core::ProcessorResult>]
       def process_many: (Array[work_item] items) -> Array[result]
 
-      # Shut down the pool.
+      # Shut down the pool and call processor lifecycle hooks if manage_lifecycle is true.
       #
       # @return [void]
-      def shutdown: () -> nil?
+      def shutdown: () -> void
 
       private
+
+      def self.start_worker: (CDC::Core::Processor processor, Ractor::Port boot_port) -> Ractor
 
       def self.run_worker_loop: (untyped safe_processor, untyped inbox) -> nil
 
       def self.worker_response: (untyped safe_processor, work_item item) -> worker_response
 
-      def dispatch: (Array[work_item] work_items, reply_port reply_port) -> Array[work_item]
+      def dispatch: (Array[work_item] work_items, reply_port reply_port) -> Array[WorkerSlot?]
 
-      def signal_workers: () -> Array[worker_inbox]
+      def signal_workers: () -> void
 
-      def wait_for_workers: () -> untyped
+      def wait_for_workers: () -> void
 
-      def wait_for_workers_with_timeout: () -> untyped
+      def wait_for_workers_with_timeout: () -> void
 
-      def validate_processor!: (CDC::Core::Processor processor) -> nil
+      def validate_processor!: (CDC::Core::Processor processor) -> void
 
-      def build_worker: (CDC::Core::Processor processor) -> ([Ractor, worker_inbox] | Array[untyped])
+      def next_worker_slot: () -> WorkerSlot
 
-      def start_worker: (CDC::Core::Processor processor, Ractor::Port boot_port) -> Ractor
+      def collect_results: (reply_port reply_port, Integer count, ?Array[WorkerSlot?] assignments) -> Array[result]
 
-      def next_worker_inbox: () -> worker_inbox
+      def collect_results_without_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result]
 
-      def collect_results: (reply_port reply_port, Integer count) -> Array[result]
-
-      def collect_results_without_timeout: (reply_port reply_port, Array[result?] results) -> untyped
-
-      def collect_results_with_timeout: (reply_port reply_port, Array[result?] results) -> untyped
+      def collect_results_with_timeout: (reply_port reply_port, Array[result?] results, Array[WorkerSlot?] assignments) -> Array[result]
 
       def timeout_results: (Array[result?] results) -> Array[result]
+
+      # One supervised worker position in the pool.
+      class WorkerSlot
+        @index: Integer
+        @processor: CDC::Core::Processor
+        @supervision: bool
+        @max_respawns: Integer
+        @respawn_window: Float
+        @respawn_cooldown: Float
+        @lock: Mutex
+        @worker: Ractor
+        @inbox: Ractor::Port
+        @inflight: Hash[Integer, Ractor::Port]
+        @crashes: Array[Float]
+        @respawns: Integer
+        @shutdown: bool
+        @degraded_until: Float?
+        @supervisor_thread: Thread
+
+        attr_reader respawns: Integer
+
+        def initialize: (
+          index: Integer,
+          processor: CDC::Core::Processor,
+          supervision: bool,
+          max_respawns: Integer,
+          respawn_window: Numeric,
+          respawn_cooldown: Numeric
+        ) -> void
+
+        def worker: () -> Ractor
+        def inbox: () -> Ractor::Port
+        def send_work: (Integer index, untyped item, Ractor::Port reply_port) -> void
+        def complete: (Integer index) -> void
+        def degraded?: () -> bool
+        def shutdown: () -> void
+        def join: () -> void
+
+        private
+
+        def boot!: () -> void
+        def supervise: () -> void
+        def wait_for_worker_death: (Ractor current_worker) -> Exception
+        def fail_inflight: (Exception cause) -> void
+        def send_failure: (Ractor::Port reply_port, Integer index, Exception error) -> void
+        def cool_down_if_needed: () -> void
+        def crash_loop?: () -> bool
+        def shutting_down?: () -> bool
+        def degraded_locked?: () -> bool
+      end
     end
   end
 end

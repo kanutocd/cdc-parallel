@@ -6,8 +6,18 @@ module CDC
 
       # @param processor [CDC::Core::Processor]
       # @param size [Integer]
-      # @param timeout [Float, nil]
-      def initialize: (processor: CDC::Core::Processor, ?size: Integer, ?timeout: Numeric?) -> void
+      # @param timeout [Numeric, nil]
+      # @param manage_lifecycle [Boolean]
+      def initialize: (
+        processor: CDC::Core::Processor,
+        ?size: Integer,
+        ?timeout: Numeric?,
+        ?supervision: bool,
+        ?max_respawns: Integer,
+        ?respawn_window: Numeric,
+        ?respawn_cooldown: Numeric,
+        ?manage_lifecycle: bool
+      ) -> void
 
       # Process all events inside a transaction envelope.
       #
@@ -18,7 +28,7 @@ module CDC
       # Shut down worker resources.
       #
       # @return [void]
-      def shutdown: () -> nil
+      def shutdown: () -> void
     end
   end
 end

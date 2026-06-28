@@ -48,14 +48,39 @@ module CDC
       #   Number of worker Ractors per internal pool.
       # @param timeout [Numeric, nil]
       #   Optional timeout in seconds for result collection and shutdown waits.
+      # @param supervision [Boolean]
+      #   Whether worker Ractors should be respawned after unexpected death.
+      # @param max_respawns [Integer]
+      #   Maximum crash count inside `respawn_window` before a worker slot enters
+      #   cooldown.
+      # @param respawn_window [Numeric]
+      #   Time window, in seconds, used by the crash-loop circuit breaker.
+      # @param respawn_cooldown [Numeric]
+      #   Cooldown, in seconds, before a crash-looping slot is revived again.
       # @raise [UnsafeProcessorError]
       #   Raised when the processor class has not declared `ractor_safe!`.
       # @raise [ArgumentError]
       #   Raised when size or timeout is invalid.
       # @return [void]
-      def initialize(processor:, size: Etc.nprocessors, timeout: nil)
-        @processor_pool = ProcessorPool.new(processor:, size:, timeout:)
-        @transaction_pool = TransactionPool.new(processor:, size:, timeout:)
+      def initialize(
+        processor:,
+        size: Etc.nprocessors,
+        timeout: nil,
+        supervision: true,
+        max_respawns: 3,
+        respawn_window: 60,
+        respawn_cooldown: 5
+      )
+        @processor = processor
+        @processor.start
+
+        pool_options = build_pool_options(
+          processor:, size:, timeout:, supervision:,
+          max_respawns:, respawn_window:, respawn_cooldown:
+        )
+
+        @processor_pool = ProcessorPool.new(**pool_options)
+        @transaction_pool = TransactionPool.new(**pool_options)
         @router = Router.new(processor_pool: @processor_pool, transaction_pool: @transaction_pool)
         @shutdown = false
       end
@@ -94,7 +119,9 @@ module CDC
       # Shut down all runtime resources.
       #
       # Shutdown is idempotent and cascades to the internal event and transaction
-      # pools. After shutdown, {#process} raises {ShutdownError}.
+      # pools. The processor's `flush` and `stop` lifecycle hooks are called once
+      # after all pools have been drained. After shutdown, {#process} raises
+      # {ShutdownError}.
       #
       # @return [void]
       def shutdown
@@ -103,6 +130,46 @@ module CDC
         @shutdown = true
         @processor_pool.shutdown
         @transaction_pool.shutdown
+        @processor.flush
+        @processor.stop
+      end
+
+      private
+
+      # Build keyword arguments shared by the event and transaction pools.
+      #
+      # The runtime owns the processor lifecycle, so internal pools receive
+      # `manage_lifecycle: false` to avoid duplicate `start`, `flush`, or `stop`
+      # calls for the same processor instance.
+      #
+      # @param processor [CDC::Core::Processor]
+      # @param size [Integer]
+      # @param timeout [Numeric, nil]
+      # @param supervision [Boolean]
+      # @param max_respawns [Integer]
+      # @param respawn_window [Numeric]
+      # @param respawn_cooldown [Numeric]
+      # @return [Hash]
+      # @api private
+      def build_pool_options(
+        processor:,
+        size:,
+        timeout:,
+        supervision:,
+        max_respawns:,
+        respawn_window:,
+        respawn_cooldown:
+      )
+        {
+          processor:,
+          size:,
+          timeout:,
+          supervision:,
+          max_respawns:,
+          respawn_window:,
+          respawn_cooldown:,
+          manage_lifecycle: false
+        }
       end
     end
   end

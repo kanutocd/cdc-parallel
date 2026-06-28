@@ -2,6 +2,10 @@
 
 module CDC
   module Parallel
+    # :nodoc:
+    ConfigurationData = Data.define(:size, :timeout)
+    private_constant :ConfigurationData
+
     # Immutable configuration shared by cdc-parallel runtime objects.
     #
     # `Configuration` validates worker sizing and timeout values at construction
@@ -22,7 +26,7 @@ module CDC
     # @!attribute [r] timeout
     #   @return [Numeric, nil] Optional wait timeout in seconds.
     # @api public
-    class Configuration < Data.define(:size, :timeout)
+    class Configuration < ConfigurationData
       # Create a validated runtime configuration.
       #
       # @param size [Integer]
